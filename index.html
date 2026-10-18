@@ -15,12 +15,17 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" type="image/svg+xml" href="icon.svg">
 
+  <!-- Cache-Busting: Bắt buộc trình duyệt luôn lấy code mới nhất từ GitHub Pages -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=4.3">
 </head>
 <body>
   <!-- Header Bar -->
@@ -39,7 +44,7 @@
         <!-- Admin Indicator Pill (Chỉ hiện khi quản lý kho mở khóa) -->
         <div class="user-pill admin-only" id="admin-badge" title="Đang ở chế độ Quản trị">
           <span class="user-role-dot"></span>
-          <span>👑 Quản lý kho</span>
+          <span>👑 Hoàng Văn Dỹ</span>
           <button id="btn-lock-mode" class="btn-lock-icon" title="Khóa lại chế độ chỉ xem">🔒</button>
         </div>
         <!-- Executive Indicator Pill (Hiện khi Ban Giám Đốc / Cán bộ cấp cao xem) -->
@@ -178,12 +183,20 @@
 
         <div class="form-grid">
           <div class="form-group">
-            <label for="pick-project-name">Tên công trình / Khách hàng</label>
-            <input type="text" id="pick-project-name" placeholder="VD: Nhà kho Tân Bình / Trạm xăng số 5" class="input-field">
+            <label for="pick-project-name">Tên dự án / Công trình</label>
+            <input type="text" id="pick-project-name" placeholder="VD: Dự án 760, Trạm biến áp 110kV..." class="input-field">
           </div>
           <div class="form-group">
-            <label for="pick-tech-name">Kỹ thuật viên phụ trách</label>
-            <input type="text" id="pick-tech-name" placeholder="VD: Nguyễn Văn A" class="input-field">
+            <label for="pick-customer-name">Khách hàng / Đơn vị tiếp nhận</label>
+            <input type="text" id="pick-customer-name" placeholder="VD: Hưng Yên, Petrolimex..." class="input-field">
+          </div>
+          <div class="form-group">
+            <label for="pick-tech-name">Kỹ thuật viên phụ trách (Nhận đồ)</label>
+            <input type="text" id="pick-tech-name" placeholder="VD: Ngô Quý Phi" class="input-field">
+          </div>
+          <div class="form-group">
+            <label for="pick-keeper-name">Thủ kho xuất hàng</label>
+            <input type="text" id="pick-keeper-name" value="Hoàng Văn Dỹ" class="input-field">
           </div>
         </div>
 
@@ -972,6 +985,6 @@ CAM-2026-003"></textarea>
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container"></div>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=4.3"></script>
 </body>
 </html>

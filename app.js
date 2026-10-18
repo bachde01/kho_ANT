@@ -140,7 +140,7 @@ const DEFAULT_KITS = [
 ];
 
 const DEFAULT_USERS = [
-  { id: 'u1', username: 'thukho', password: '123', name: 'Quản Lý Kho (Bạn)', role: 'admin' },
+  { id: 'u1', username: 'thukho', password: '123', name: 'Hoàng Văn Dỹ (Thủ kho)', role: 'admin' },
   { id: 'u2', username: 'sep', password: '123', name: 'Ban Giám Đốc & Cán Bộ Cấp Cao', role: 'viewer' }
 ];
 
@@ -369,6 +369,8 @@ document.addEventListener('DOMContentLoaded', () => {
 function initPWA() {
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').then((reg) => {
+      // Ép trình duyệt kiểm tra bản cập nhật mới trên GitHub ngay khi mở app
+      reg.update();
       // Khi phát hiện file mới được đẩy lên GitHub Pages
       reg.onupdatefound = () => {
         const installingWorker = reg.installing;
@@ -796,8 +798,11 @@ function handleConfirmDispatch() {
     return;
   }
 
-  const projectName = document.getElementById('pick-project-name').value.trim() || 'Công trình mới';
+  const projectName = document.getElementById('pick-project-name').value.trim() || 'Dự án mới';
+  const customerName = document.getElementById('pick-customer-name') ? document.getElementById('pick-customer-name').value.trim() : '';
   const techName = document.getElementById('pick-tech-name').value.trim() || 'Kỹ thuật viên';
+  const keeperName = document.getElementById('pick-keeper-name') ? document.getElementById('pick-keeper-name').value.trim() : 'Hoàng Văn Dỹ';
+  const fullProjectName = customerName ? `${projectName} - ${customerName}` : projectName;
 
   // Deduct inventory
   store.pickingCart.forEach((p) => {
@@ -812,8 +817,9 @@ function handleConfirmDispatch() {
     id: 'PXK-' + Date.now().toString().slice(-6),
     date: new Date().toLocaleString('vi-VN'),
     month: store.currentMonth,
-    project: projectName,
+    project: fullProjectName,
     tech: techName,
+    keeper: keeperName,
     items: store.pickingCart.map((p) => ({ name: p.name, qty: p.qty, unit: p.unit })),
     status: 'Đã xuất kho'
   };
@@ -1077,8 +1083,10 @@ function openPickingSlipModal() {
     return;
   }
 
-  const projectName = document.getElementById('pick-project-name').value.trim() || 'Công trình chưa đặt tên';
-  const techName = document.getElementById('pick-tech-name').value.trim() || 'Chưa chỉ định KTV';
+  const projectName = document.getElementById('pick-project-name').value.trim() || 'Dự án chưa đặt tên';
+  const customerName = document.getElementById('pick-customer-name') ? document.getElementById('pick-customer-name').value.trim() : '';
+  const techName = document.getElementById('pick-tech-name').value.trim() || 'Kỹ thuật viên';
+  const keeperName = document.getElementById('pick-keeper-name') ? document.getElementById('pick-keeper-name').value.trim() : 'Hoàng Văn Dỹ';
   const today = new Date().toLocaleDateString('vi-VN');
 
   let rowsHtml = '';
@@ -1118,10 +1126,12 @@ function openPickingSlipModal() {
       </div>
 
       <div class="slip-meta-grid">
-        <div><strong>Công trình / Khách hàng:</strong> ${projectName}</div>
+        <div><strong>Dự án / Công trình:</strong> ${projectName}</div>
         <div><strong>Ngày xuất kho:</strong> ${today}</div>
+        <div><strong>Khách hàng:</strong> ${customerName || 'Đơn vị dự án'}</div>
+        <div><strong>Thủ kho xuất hàng:</strong> ${keeperName}</div>
         <div><strong>Kỹ thuật viên phụ trách:</strong> ${techName}</div>
-        <div><strong>Thủ kho xuất hàng:</strong> Quản lý kho</div>
+        <div><strong>Bộ phận:</strong> Kỹ thuật lắp đặt</div>
       </div>
 
       <table class="slip-table">
@@ -1139,11 +1149,17 @@ function openPickingSlipModal() {
       </table>
 
       <div class="slip-signatures">
-        <div>
-          KỸ THUẬT VIÊN NHẬN ĐỒ<br><small>(Ký & ghi rõ họ tên)</small>
+        <div class="sig-col">
+          <div class="sig-title">KỸ THUẬT VIÊN NHẬN ĐỒ</div>
+          <div class="sig-note">(Ký nhận)</div>
+          <div class="sig-space"></div>
+          <div class="sig-name">${techName}</div>
         </div>
-        <div>
-          THỦ KHO XUẤT HÀNG<br><small>(Ký & ghi rõ họ tên)</small>
+        <div class="sig-col">
+          <div class="sig-title">THỦ KHO XUẤT HÀNG</div>
+          <div class="sig-note">(Ký nhận)</div>
+          <div class="sig-space"></div>
+          <div class="sig-name">${keeperName}</div>
         </div>
       </div>
     </div>
@@ -2032,6 +2048,22 @@ function exportLiquidationReport() {
 
     container.innerHTML = `
       <div style="padding:16px; font-family:inherit">
+        <!-- THÔNG TIN DOANH NGHIỆP TRÊN ĐẦU BIÊN BẢN (THEO MẪU CÔNG TY ANT LUCENT) -->
+        <div class="slip-company-header" style="border-bottom: 1.5px solid #334155; margin-bottom: 16px;">
+          <div class="slip-company-logo">
+            <img src="${ANT_LUCENT_LOGO_B64}" alt="Logo Ant Lucent">
+          </div>
+          <div class="slip-company-info">
+            <div class="slip-company-name" style="color:#F8FAFC">Công Ty Cổ Phần Công Nghệ Ant Lucent</div>
+            <div class="slip-company-line" style="color:#CBD5E1">Địa chỉ : 152 Thụy Khuê , Q.Tây Hồ, Hà Nội</div>
+            <div class="slip-company-line slip-company-flex" style="color:#CBD5E1">
+              <span>Điện thoại :</span>
+              <span>Fax : 848-4-9347503</span>
+            </div>
+            <div class="slip-company-line" style="color:#CBD5E1">Email : infor@jsc.com.vn | Website : www.jsc.com.vn</div>
+          </div>
+        </div>
+
         <div style="text-align:center; margin-bottom:16px">
           <h2 style="font-size:1.15rem; color:#F1F5F9; margin-bottom:4px">BIÊN BẢN ĐỀ XUẤT THANH LÝ VẬT TƯ HỎNG</h2>
           <p style="font-size:0.85rem; color:#94A3B8">Kỳ kiểm kê & báo cáo: <strong>${store.currentMonth}</strong> • Ngày lập: ${new Date().toLocaleDateString('vi-VN')}</p>
@@ -2640,9 +2672,17 @@ function initModals() {
   };
 
   document.getElementById('btn-copy-slip').onclick = () => {
-    const projectName = document.getElementById('pick-project-name').value.trim() || 'Công trình';
+    const projectName = document.getElementById('pick-project-name').value.trim() || 'Dự án';
+    const customerName = document.getElementById('pick-customer-name') ? document.getElementById('pick-customer-name').value.trim() : '';
     const techName = document.getElementById('pick-tech-name').value.trim() || 'KTV';
-    let text = `📦 PHIẾU XUẤT VẬT TƯ LẮP ĐẶT - ${projectName}\nCông Ty Cổ Phần Công Nghệ Ant Lucent\n👤 KTV: ${techName}\n📅 Ngày: ${new Date().toLocaleDateString('vi-VN')}\n------------------------\n`;
+    const keeperName = document.getElementById('pick-keeper-name') ? document.getElementById('pick-keeper-name').value.trim() : 'Hoàng Văn Dỹ';
+
+    let text = `📦 PHIẾU XUẤT VẬT TƯ LẮP ĐẶT\nCông Ty Cổ Phần Công Nghệ Ant Lucent\n`;
+    text += `🏢 Dự án: ${projectName}\n`;
+    if (customerName) text += `👥 Khách hàng: ${customerName}\n`;
+    text += `👤 KTV nhận đồ: ${techName}\n`;
+    text += `📦 Thủ kho xuất hàng: ${keeperName}\n`;
+    text += `📅 Ngày: ${new Date().toLocaleDateString('vi-VN')}\n------------------------\n`;
     store.pickingCart.forEach((p, idx) => {
       text += `${idx + 1}. ${p.name}: Yêu cầu ${p.qty} ${p.unit} ${p.hasSerial ? '(CẦN CHECK SN)' : ''}\n`;
     });

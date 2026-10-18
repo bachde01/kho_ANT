@@ -1,9 +1,9 @@
-const CACHE_NAME = 'kho-anninh-v4';
+const CACHE_NAME = 'kho-anninh-v6';
 const ASSETS = [
   './',
   './index.html',
-  './style.css',
-  './app.js',
+  './style.css?v=4.3',
+  './app.js?v=4.3',
   './manifest.json',
   './icon.svg',
   './ant_lucent_icon.png'
