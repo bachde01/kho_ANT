@@ -1,4 +1,4 @@
-const CACHE_NAME = 'kho-anninh-v2';
+const CACHE_NAME = 'kho-anninh-v3';
 const ASSETS = [
   './',
   './index.html',

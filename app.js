@@ -141,7 +141,7 @@ const DEFAULT_KITS = [
 
 const DEFAULT_USERS = [
   { id: 'u1', username: 'thukho', password: '123', name: 'Quản Lý Kho (Bạn)', role: 'admin' },
-  { id: 'u2', username: 'sep', password: '123', name: 'Ban Giám Đốc (Sếp)', role: 'viewer' }
+  { id: 'u2', username: 'sep', password: '123', name: 'Ban Giám Đốc & Cán Bộ Cấp Cao', role: 'viewer' }
 ];
 
 const DEFAULT_DISPATCH_HISTORY = [
@@ -476,6 +476,16 @@ function initFilters() {
       btn.classList.add('active');
       currentCatFilter = btn.getAttribute('data-cat');
       renderInventory();
+    });
+  });
+
+  const historyFilterBtns = document.querySelectorAll('#history-type-filters .filter-pill');
+  historyFilterBtns.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      historyFilterBtns.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentHistoryFilter = btn.getAttribute('data-type');
+      renderDispatchHistory();
     });
   });
 }
@@ -1122,65 +1132,164 @@ function openPickingSlipModal() {
   document.getElementById('modal-picking-slip').classList.add('open');
 }
 
-// 8. DISPATCH HISTORY LOG (NHẬT KÝ LẤY ĐỒ - CHO SẾP & THỦ KHO)
+// 8. WAREHOUSE HISTORY LOG (NHẬT KÝ XUẤT - NHẬP KHO & HÓA ĐƠN CHO BAN LÃNH ĐẠO)
+let currentHistoryFilter = 'all';
+
 function renderDispatchHistory() {
   const container = document.getElementById('dispatch-history-list');
-  const totalCountEl = document.getElementById('history-total-count');
   if (!container) return;
 
   const searchInput = document.getElementById('history-search');
   const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
-  // Filter by current month and search query
-  const filtered = store.dispatchHistory.filter((d) => {
-    const matchMonth = !d.month || d.month === store.currentMonth;
-    const matchQuery =
-      !query ||
-      d.project.toLowerCase().includes(query) ||
-      d.tech.toLowerCase().includes(query) ||
-      d.id.toLowerCase().includes(query) ||
-      (d.items && d.items.some((it) => it.name.toLowerCase().includes(query)));
-    return matchMonth && matchQuery;
+  // 1. Lấy dữ liệu theo kỳ tháng hiện tại
+  const monthDispatches = (store.dispatchHistory || []).filter((d) => !d.month || d.month === store.currentMonth);
+  const monthInwards = (store.invoices || []).filter((i) => !i.month || i.month === store.currentMonth);
+  const monthReturns = (store.returnHistory || []).filter((r) => !r.month || r.month === store.currentMonth || (r.date && r.date.includes(store.currentMonth)));
+
+  // Cập nhật thẻ KPI cho Ban Giám Đốc
+  const elDispCount = document.getElementById('history-dispatch-count');
+  const elInwCount = document.getElementById('history-inward-count');
+  const elInwCost = document.getElementById('history-inward-total-cost');
+  
+  if (elDispCount) elDispCount.textContent = monthDispatches.length;
+  if (elInwCount) elInwCount.textContent = monthInwards.length;
+  if (elInwCost) {
+    const totalCost = monthInwards.reduce((sum, inv) => sum + (Number(inv.amount) || 0), 0);
+    elInwCost.textContent = totalCost > 0 ? totalCost.toLocaleString('vi-VN') + ' đ' : '0 đ';
+  }
+
+  // 2. Gom danh sách bản ghi theo bộ lọc loại (currentHistoryFilter)
+  let records = [];
+
+  if (currentHistoryFilter === 'all' || currentHistoryFilter === 'dispatch') {
+    monthDispatches.forEach((d) => records.push({ ...d, recordType: 'dispatch' }));
+  }
+  if (currentHistoryFilter === 'all' || currentHistoryFilter === 'inward') {
+    monthInwards.forEach((i) => records.push({ ...i, recordType: 'inward' }));
+  }
+  if (currentHistoryFilter === 'all' || currentHistoryFilter === 'return') {
+    monthReturns.forEach((r) => records.push({ ...r, recordType: 'return' }));
+  }
+
+  // 3. Lọc theo từ khóa tìm kiếm
+  const filtered = records.filter((rec) => {
+    if (!query) return true;
+    if (rec.recordType === 'dispatch') {
+      const matchProject = rec.project && rec.project.toLowerCase().includes(query);
+      const matchTech = rec.tech && rec.tech.toLowerCase().includes(query);
+      const matchId = rec.id && rec.id.toLowerCase().includes(query);
+      const matchItems = rec.items && rec.items.some((it) => it.name.toLowerCase().includes(query) || (it.sn && it.sn.toLowerCase().includes(query)));
+      return matchProject || matchTech || matchId || matchItems;
+    }
+    if (rec.recordType === 'inward') {
+      const matchNo = rec.invoiceNo && rec.invoiceNo.toLowerCase().includes(query);
+      const matchSup = rec.supplier && rec.supplier.toLowerCase().includes(query);
+      const matchItem = rec.itemName && rec.itemName.toLowerCase().includes(query);
+      const matchNotes = rec.notes && rec.notes.toLowerCase().includes(query);
+      return matchNo || matchSup || matchItem || matchNotes;
+    }
+    if (rec.recordType === 'return') {
+      const matchItem = rec.item && rec.item.toLowerCase().includes(query);
+      const matchProj = rec.project && rec.project.toLowerCase().includes(query);
+      const matchNote = rec.note && rec.note.toLowerCase().includes(query);
+      return matchItem || matchProj || matchNote;
+    }
+    return true;
   });
 
-  if (totalCountEl) totalCountEl.textContent = filtered.length;
-
   if (filtered.length === 0) {
-    container.innerHTML = `<div class="picking-cart-empty">Chưa có lượt xuất đồ nào trong kỳ ${store.currentMonth}.</div>`;
+    container.innerHTML = `<div class="picking-cart-empty">Không có nhật ký nào trong kỳ ${store.currentMonth} khớp với bộ lọc.</div>`;
     return;
   }
 
+  // 4. Render danh sách thẻ
   container.innerHTML = filtered
-    .map((d) => {
-      const itemsHtml = d.items
-        ? d.items
-            .map(
-              (it) => `
-          <span class="dispatch-item-pill">
-            <strong>${it.qty} ${it.unit || ''}</strong> ${it.name} ${it.sn ? `(SN: ${it.sn})` : ''}
-          </span>
-        `
-            )
-            .join('')
-        : `<span class="dispatch-item-pill">${d.itemsSummary || 'Vật tư thi công'}</span>`;
+    .map((rec) => {
+      // THẺ XUẤT KHO
+      if (rec.recordType === 'dispatch') {
+        const itemsHtml = rec.items
+          ? rec.items
+              .map(
+                (it) => `
+            <span class="dispatch-item-pill">
+              <strong>${it.qty} ${it.unit || ''}</strong> ${it.name} ${it.sn ? `(SN: ${it.sn})` : ''}
+            </span>
+          `
+              )
+              .join('')
+          : `<span class="dispatch-item-pill">${rec.itemsSummary || 'Vật tư thi công'}</span>`;
 
-      return `
-      <div class="dispatch-card">
-        <div class="dispatch-header">
-          <div>
-            <div class="d-flex align-center gap-2">
-              <span class="status-badge status-deployed">${d.id}</span>
-              <span class="dispatch-title">${d.project}</span>
+        return `
+        <div class="dispatch-card">
+          <div class="dispatch-header">
+            <div>
+              <div class="d-flex align-center gap-2">
+                <span class="status-badge status-deployed">📤 Xuất: ${rec.id}</span>
+                <span class="dispatch-title">${rec.project}</span>
+              </div>
+              <p class="dispatch-meta">👤 KTV nhận: <strong>${rec.tech}</strong> • 📅 ${rec.date}</p>
             </div>
-            <p class="dispatch-meta">👤 KTV nhận: <strong>${d.tech}</strong> • 📅 ${d.date}</p>
+            <span class="status-badge ${rec.status === 'Đang thi công' ? 'status-deploying' : 'status-in-stock'}">${rec.status || 'Đã xuất kho'}</span>
           </div>
-          <span class="status-badge ${d.status === 'Đang thi công' ? 'status-deploying' : 'status-in-stock'}">${d.status || 'Đã xuất kho'}</span>
+          <div class="dispatch-items-container">
+            ${itemsHtml}
+          </div>
         </div>
-        <div class="dispatch-items-container">
-          ${itemsHtml}
+      `;
+      }
+
+      // THẺ NHẬP HÀNG & HÓA ĐƠN
+      if (rec.recordType === 'inward') {
+        const amountStr = rec.amount ? Number(rec.amount).toLocaleString('vi-VN') + ' đ' : '';
+        return `
+        <div class="dispatch-card inward-card">
+          <div class="dispatch-header">
+            <div>
+              <div class="d-flex align-center gap-2">
+                <span class="status-badge status-inward">📥 Nhập kho: ${rec.invoiceNo || rec.id}</span>
+                <span class="dispatch-title">${rec.supplier || 'Nhà cung cấp'}</span>
+                ${rec.wasOutOfStock ? '<span class="badge-out-restock">⚡ Nhập khi hết hàng</span>' : ''}
+              </div>
+              <p class="dispatch-meta">
+                📅 ${rec.date} • Vật tư: <strong style="color:#38BDF8">${rec.itemName}</strong>
+                ${amountStr ? ` • 💰 Số tiền: <strong style="color:#FBBF24">${amountStr}</strong>` : ''}
+              </p>
+            </div>
+            <div class="d-flex align-center gap-2">
+              ${rec.invoicePhoto ? `<button class="btn-card-view-invoice" onclick="openInvoiceModal('${rec.id}')">🖼️ Xem Hóa Đơn</button>` : ''}
+              <span class="status-badge status-in-stock">+${rec.qty} ${rec.unit || ''}</span>
+            </div>
+          </div>
+          ${rec.notes ? `<div class="inward-notes-text">📝 Ghi chú: ${rec.notes}</div>` : ''}
         </div>
-      </div>
-    `;
+      `;
+      }
+
+      // THẺ HOÀN TRẢ CÔNG TRÌNH
+      if (rec.recordType === 'return') {
+        const isGood = rec.condition === 'good';
+        return `
+        <div class="dispatch-card return-card">
+          <div class="dispatch-header">
+            <div>
+              <div class="d-flex align-center gap-2">
+                <span class="status-badge status-return">↩️ Hoàn trả kho</span>
+                <span class="dispatch-title">${rec.project || 'Công trình hoàn trả'}</span>
+                <span class="status-badge ${isGood ? 'status-in-stock' : 'status-defective'}">
+                  ${isGood ? '✅ Còn tốt' : '⚠️ Bị hỏng / RMA'}
+                </span>
+              </div>
+              <p class="dispatch-meta">📅 ${rec.date} • Vật tư: <strong style="color:#38BDF8">${rec.item}</strong> (+${rec.qty} ${rec.unit})</p>
+            </div>
+            <span class="status-badge status-info">+${rec.qty} ${rec.unit || ''}</span>
+          </div>
+          ${rec.note ? `<div class="inward-notes-text">📝 Ghi chú: ${rec.note}</div>` : ''}
+        </div>
+      `;
+      }
+
+      return '';
     })
     .join('');
 }

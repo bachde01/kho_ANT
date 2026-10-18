@@ -1220,6 +1220,14 @@ body.role-viewer .admin-only {
   display: none !important;
 }
 
+body:not(.role-viewer) .viewer-only {
+  display: none !important;
+}
+
+body.role-viewer .viewer-only {
+  display: flex !important;
+}
+
 body.role-viewer .btn-card-action {
   display: none !important;
 }
@@ -1369,6 +1377,58 @@ body.role-viewer .user-role-dot {
 
 .dispatch-item-pill strong {
   color: #38BDF8;
+}
+
+.inward-card {
+  border-left: 3px solid var(--emerald);
+}
+
+.return-card {
+  border-left: 3px solid #8B5CF6;
+}
+
+.status-inward {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #34D399 !important;
+  border: 1px solid rgba(16, 185, 129, 0.3) !important;
+}
+
+.status-return {
+  background: rgba(139, 92, 246, 0.15) !important;
+  color: #A78BFA !important;
+  border: 1px solid rgba(139, 92, 246, 0.3) !important;
+}
+
+.history-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+}
+
+.btn-card-view-invoice {
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #38BDF8;
+  border-radius: var(--radius-sm);
+  padding: 4px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-card-view-invoice:hover {
+  background: #38BDF8;
+  color: #0B0F19;
+}
+
+.inward-notes-text {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  background: rgba(255, 255, 255, 0.03);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
 }
 
 /* ================= QUICK LOGIN MODAL ================= */
