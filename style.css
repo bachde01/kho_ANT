@@ -1268,16 +1268,17 @@ textarea.input-field {
   body * {
     visibility: hidden;
   }
-  #printable-area, #printable-area * {
+  #printable-area, #printable-area *,
+  #printable-return-area, #printable-return-area * {
     visibility: visible;
   }
-  #printable-area {
+  #printable-area, #printable-return-area {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
     margin: 0;
-    padding: 15mm;
+    padding: 12mm 15mm;
     background: #FFFFFF !important;
     color: #000000 !important;
     box-shadow: none !important;
@@ -1298,6 +1299,55 @@ textarea.input-field {
   .modal-header, .modal-footer, .app-header, .bottom-nav {
     display: none !important;
   }
+}
+
+/* ================= RETURN CART & SLIP STYLES ================= */
+.return-cart-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 9px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  gap: 10px;
+}
+
+.return-cart-item.defective {
+  border-left: 3px solid var(--rose);
+  background: rgba(244, 63, 94, 0.04);
+}
+
+.return-cart-item.good {
+  border-left: 3px solid var(--emerald);
+  background: rgba(16, 185, 129, 0.04);
+}
+
+.return-cart-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-card-view-slip {
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38BDF8;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition: var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.btn-card-view-slip:hover {
+  background: rgba(56, 189, 248, 0.25);
+  border-color: #38BDF8;
+  transform: translateY(-1px);
 }
 
 /* ================= TOAST NOTIFICATION ================= */

@@ -309,6 +309,7 @@ class WarehouseStore {
     this.currentMonth = this.load('wh_current_month', '2026-10');
     this.availableMonths = this.load('wh_available_months', ['2026-10', '2026-09', '2026-08']);
     this.pickingCart = [];
+    this.returnCart = [];
   }
 
   load(key, fallback) {
@@ -415,6 +416,7 @@ function renderAll() {
   renderSerials();
   renderKits();
   renderPickingCart();
+  renderReturnCart();
   populateDropdowns();
   renderTools();
   renderReturnHistory();
@@ -1306,20 +1308,42 @@ function renderDispatchHistory() {
       // THẺ HOÀN TRẢ CÔNG TRÌNH
       if (rec.recordType === 'return') {
         const isGood = rec.condition === 'good';
+        const items = rec.items && rec.items.length > 0
+          ? rec.items
+          : [{ name: rec.item, qty: rec.qty, unit: rec.unit, condition: rec.condition, reason: rec.note }];
+        const itemsHtml = items
+          .map(
+            (it) => `
+          <span class="dispatch-item-pill" style="border-left: 2px solid ${it.condition === 'good' ? 'var(--emerald)' : 'var(--rose)'}">
+            <strong>+${it.qty} ${it.unit || ''}</strong> ${it.name} ${it.serialNo ? `(SN: ${it.serialNo})` : ''}
+          </span>
+        `
+          )
+          .join('');
+
         return `
         <div class="dispatch-card return-card">
           <div class="dispatch-header">
             <div>
               <div class="d-flex align-center gap-2">
-                <span class="status-badge status-return">↩️ Hoàn trả kho</span>
+                <span class="status-badge status-return">↩️ Hoàn kho: ${rec.id || 'HK'}</span>
                 <span class="dispatch-title">${rec.project || 'Công trình hoàn trả'}</span>
                 <span class="status-badge ${isGood ? 'status-in-stock' : 'status-defective'}">
                   ${isGood ? '✅ Còn tốt' : '⚠️ Bị hỏng / RMA'}
                 </span>
               </div>
-              <p class="dispatch-meta">📅 ${rec.date} • Vật tư: <strong style="color:#38BDF8">${rec.item}</strong> (+${rec.qty} ${rec.unit})</p>
+              <p class="dispatch-meta">
+                👤 KTV bàn giao: <strong>${rec.tech || 'Kỹ thuật viên'}</strong> • 📅 ${rec.date}
+                ${rec.keeper ? ` • 🏢 Thủ kho nhận: <strong>${rec.keeper}</strong>` : ''}
+              </p>
             </div>
-            <span class="status-badge status-info">+${rec.qty} ${rec.unit || ''}</span>
+            <div class="d-flex align-center gap-2">
+              <button class="btn-card-view-slip" onclick="viewReturnSlipById('${rec.id}')">📄 Xem Phiếu Hoàn Kho</button>
+              <span class="status-badge status-info">+${rec.qty || items.length} ${rec.unit || 'món'}</span>
+            </div>
+          </div>
+          <div class="dispatch-items-container">
+            ${itemsHtml}
           </div>
           ${rec.note ? `<div class="inward-notes-text">📝 Ghi chú: ${rec.note}</div>` : ''}
         </div>
@@ -1543,73 +1567,141 @@ function initInwardAndReturn() {
     });
   });
 
-  // Form Return Submit (Hoàn trả công trình -> Tồn kho hoặc Kho Hỏng)
+  // Cập nhật đơn vị tính khi chọn vật tư hoàn trả
+  const returnItemSelect = document.getElementById('return-item-select');
+  const returnUnitDisplay = document.getElementById('return-unit-display');
+  const updateReturnUnit = () => {
+    if (!returnItemSelect || !returnUnitDisplay) return;
+    const item = store.inventory.find((i) => i.id === returnItemSelect.value);
+    if (item) {
+      returnUnitDisplay.textContent = item.unit;
+    }
+  };
+  if (returnItemSelect) {
+    returnItemSelect.addEventListener('change', updateReturnUnit);
+  }
+
+  // Thêm món vào Danh sách / Giỏ đồ hoàn trả
+  const btnAddReturnItem = document.getElementById('btn-add-return-item');
+  if (btnAddReturnItem) {
+    btnAddReturnItem.onclick = () => {
+      const select = document.getElementById('return-item-select');
+      const itemId = select ? select.value : '';
+      const item = store.inventory.find((i) => i.id === itemId);
+      if (!item) {
+        showToast('Vui lòng chọn một vật tư để hoàn trả!', 'error');
+        return;
+      }
+
+      const qty = parseInt(document.getElementById('return-quantity').value) || 1;
+      const condition = document.querySelector('input[name="return_condition"]:checked')?.value || 'good';
+      const defectiveDest = document.getElementById('return-defective-dest')?.value || 'repair';
+      const serialNo = document.getElementById('return-serial-input')?.value.trim() || '';
+      const reason = document.getElementById('return-reason')?.value.trim() || '';
+
+      store.returnCart.push({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        unit: item.unit,
+        qty: qty,
+        hasSerial: item.hasSerial,
+        serialNo: serialNo,
+        condition: condition,
+        dest: condition === 'defective' ? defectiveDest : '',
+        reason: reason
+      });
+
+      renderReturnCart();
+
+      // Reset ô nhập lẻ
+      document.getElementById('return-quantity').value = 1;
+      if (document.getElementById('return-serial-input')) document.getElementById('return-serial-input').value = '';
+      if (document.getElementById('return-reason')) document.getElementById('return-reason').value = '';
+
+      showToast(`Đã thêm ${qty} ${item.unit} "${item.name}" vào phiếu hoàn!`, 'success');
+    };
+  }
+
+  // Xóa sạch giỏ hoàn trả
+  const btnClearReturnCart = document.getElementById('btn-clear-return-cart');
+  if (btnClearReturnCart) {
+    btnClearReturnCart.onclick = () => {
+      store.returnCart = [];
+      renderReturnCart();
+      showToast('Đã làm trống danh sách hoàn trả!', 'info');
+    };
+  }
+
+  // Form Return Submit (Xuất Phiếu Nhập Hoàn Kho & Giấy Ký Hai Bên)
   const formReturn = document.getElementById('form-return');
   if (formReturn) {
     formReturn.onsubmit = (e) => {
       e.preventDefault();
       if (store.currentUser.role !== 'admin') return;
-      const project = document.getElementById('return-project-name').value.trim();
-      const itemId = document.getElementById('return-item-select').value;
-      const condition = document.querySelector('input[name="return_condition"]:checked').value;
-      const qty = parseInt(document.getElementById('return-quantity').value) || 1;
-      const reason = document.getElementById('return-reason').value.trim();
-      const defectiveDest = document.getElementById('return-defective-dest') ? document.getElementById('return-defective-dest').value : 'repair';
 
-      const item = store.inventory.find((i) => i.id === itemId);
-      if (!item) return;
+      const projectName = document.getElementById('return-project-name').value.trim();
+      const customerName = document.getElementById('return-customer-name') ? document.getElementById('return-customer-name').value.trim() : '';
+      const techName = document.getElementById('return-tech-name').value.trim();
+      const keeperName = document.getElementById('return-keeper-name') ? document.getElementById('return-keeper-name').value.trim() : 'Hoàng Văn Dỹ';
 
-      if (condition === 'good') {
-        item.qty += qty;
-        showToast(`Hoàn trả ${qty} ${item.unit} "${item.name}" vào tồn kho tốt!`, 'success');
-      } else {
-        // Tạo bản ghi trong Kho Hỏng (defectiveItems)
-        const newDefective = {
-          id: 'DEF-' + Date.now(),
-          month: store.currentMonth,
-          date: new Date().toLocaleString('vi-VN'),
-          itemId: item.id,
-          itemName: item.name,
-          hasSerial: item.hasSerial,
-          serialNo: '',
-          qty: qty,
-          unit: item.unit,
-          sourceProject: project,
-          errorDesc: reason || 'Lỗi kỹ thuật khi thi công',
-          type: defectiveDest, // 'repair' | 'warranty' | 'scrap'
-          vendorName: '',
-          rmaCode: '',
-          sentDate: '',
-          notes: '',
-          liquidatedAt: ''
-        };
-
-        store.defectiveItems.unshift(newDefective);
-
-        let destName = 'Chờ sửa chữa';
-        if (defectiveDest === 'warranty') destName = 'Gửi bảo hành hãng';
-        else if (defectiveDest === 'scrap') destName = 'Đề xuất thanh lý';
-
-        showToast(`Đã đưa ${qty} ${item.unit} lỗi vào Kho Hỏng (${destName})!`, 'error');
+      if (!projectName) {
+        showToast('Vui lòng nhập tên dự án / công trình hoàn trả!', 'error');
+        return;
+      }
+      if (!techName) {
+        showToast('Vui lòng nhập tên kỹ thuật viên bàn giao đồ!', 'error');
+        return;
       }
 
-      store.returnHistory.unshift({
-        id: 'R_' + Date.now(),
+      // Nếu giỏ hoàn đang trống, tự động lấy thông tin từ form nếu đã chọn vật tư
+      if (store.returnCart.length === 0) {
+        const select = document.getElementById('return-item-select');
+        const itemId = select ? select.value : '';
+        const item = store.inventory.find((i) => i.id === itemId);
+        if (item) {
+          const qty = parseInt(document.getElementById('return-quantity').value) || 1;
+          const condition = document.querySelector('input[name="return_condition"]:checked')?.value || 'good';
+          const defectiveDest = document.getElementById('return-defective-dest')?.value || 'repair';
+          const serialNo = document.getElementById('return-serial-input')?.value.trim() || '';
+          const reason = document.getElementById('return-reason')?.value.trim() || '';
+
+          store.returnCart.push({
+            id: item.id,
+            name: item.name,
+            category: item.category,
+            unit: item.unit,
+            qty: qty,
+            hasSerial: item.hasSerial,
+            serialNo: serialNo,
+            condition: condition,
+            dest: condition === 'defective' ? defectiveDest : '',
+            reason: reason
+          });
+          renderReturnCart();
+        } else {
+          showToast('Vui lòng chọn ít nhất 1 vật tư để xuất phiếu hoàn kho!', 'error');
+          return;
+        }
+      }
+
+      const returnData = {
+        id: 'HK-' + Date.now(),
         date: new Date().toLocaleString('vi-VN'),
         month: store.currentMonth,
-        project: project,
-        item: item.name,
-        qty: qty,
-        unit: item.unit,
-        condition: condition,
-        note: reason || (condition === 'good' ? 'Vật tư thừa còn tốt' : 'Lỗi kỹ thuật')
-      });
+        project: projectName,
+        customer: customerName,
+        tech: techName,
+        keeper: keeperName,
+        items: [...store.returnCart],
+        item: store.returnCart.map((i) => i.name).join(', '),
+        qty: store.returnCart.reduce((sum, i) => sum + i.qty, 0),
+        unit: store.returnCart[0]?.unit || 'Món',
+        condition: store.returnCart.some((i) => i.condition === 'defective') ? 'defective' : 'good',
+        note: store.returnCart.map((i) => `${i.name}: ${i.reason || (i.condition === 'good' ? 'Thừa' : 'Lỗi')}`).join('; ')
+      };
 
-      store.save();
-      renderAll();
-      formReturn.reset();
-      if (returnDefectiveOptions) returnDefectiveOptions.classList.add('hidden');
-      if (store.sheetApiUrl) pushToGoogleSheet(false);
+      openReturnSlipModal(returnData, false);
     };
   }
 
@@ -2242,6 +2334,352 @@ window.openInvoicePhotoPreview = function (dataUrl, title) {
   modal.classList.add('open');
 };
 
+// Render danh sách vật tư đang chuẩn bị xuất phiếu hoàn kho
+function renderReturnCart() {
+  const container = document.getElementById('return-cart-list');
+  const countEl = document.getElementById('return-cart-count');
+  const btnClear = document.getElementById('btn-clear-return-cart');
+  if (!container) return;
+
+  if (countEl) countEl.textContent = store.returnCart.length;
+
+  if (store.returnCart.length === 0) {
+    container.className = 'picking-cart-empty';
+    container.innerHTML = 'Chưa có món nào được thêm. Hãy chọn vật tư ở trên rồi bấm nút "+ Thêm Vào Danh Sách Hoàn Này"!';
+    if (btnClear) btnClear.style.display = 'none';
+    return;
+  }
+
+  container.className = '';
+  if (btnClear) btnClear.style.display = 'inline-block';
+
+  container.innerHTML = store.returnCart
+    .map((item, idx) => {
+      const isGood = item.condition === 'good';
+      let destTag = '';
+      if (!isGood) {
+        if (item.dest === 'repair') destTag = '🔧 Sửa chữa';
+        else if (item.dest === 'warranty') destTag = '🛡️ Bảo hành';
+        else if (item.dest === 'scrap') destTag = '🗑️ Thanh lý';
+        else destTag = '⚠️ Hỏng';
+      }
+      return `
+      <div class="return-cart-item ${isGood ? 'good' : 'defective'}">
+        <div class="return-cart-item-info">
+          <div class="d-flex align-center gap-2">
+            <strong style="font-size:0.86rem">${item.name}</strong>
+            <span class="status-badge ${isGood ? 'status-in-stock' : 'status-defective'}" style="font-size:0.68rem; padding:1px 6px">
+              ${isGood ? '✅ Còn tốt' : destTag}
+            </span>
+          </div>
+          <div class="text-muted text-xs mt-1">
+            Số lượng: <strong class="text-white">${item.qty} ${item.unit}</strong>
+            ${item.serialNo ? ` • SN: <strong style="color:#38BDF8">${item.serialNo}</strong>` : ''}
+            ${item.reason ? ` • Ghi chú: <em>${item.reason}</em>` : ''}
+          </div>
+        </div>
+        <button type="button" class="btn-sm text-danger" onclick="removeReturnCartItem(${idx})" title="Xóa món này">✕</button>
+      </div>
+    `;
+    })
+    .join('');
+}
+
+window.removeReturnCartItem = function (idx) {
+  store.returnCart.splice(idx, 1);
+  renderReturnCart();
+};
+
+// Biến lưu thông tin phiếu hoàn kho hiện tại
+let currentActiveReturnData = null;
+
+// Mở Modal Phiếu Nhập Hoàn Kho Vật Tư & Thiết Bị (Chuẩn Mẫu Ant Lucent & Ký 2 bên)
+function openReturnSlipModal(returnData, isPreviewOnly = false) {
+  currentActiveReturnData = returnData;
+  const items = returnData.items && returnData.items.length > 0
+    ? returnData.items
+    : [
+        {
+          name: returnData.item || 'Vật tư thi công',
+          qty: returnData.qty || 1,
+          unit: returnData.unit || 'Cái',
+          condition: returnData.condition || 'good',
+          dest: returnData.dest || '',
+          reason: returnData.note || ''
+        }
+      ];
+
+  let rowsHtml = '';
+  items.forEach((p, idx) => {
+    const isGood = p.condition === 'good';
+    let destLabel = 'Nhập tồn khả dụng';
+    if (!isGood) {
+      if (p.dest === 'repair') destLabel = 'Chờ sửa chữa';
+      else if (p.dest === 'warranty') destLabel = 'Bảo hành hãng';
+      else if (p.dest === 'scrap') destLabel = 'Chờ thanh lý';
+      else destLabel = 'Kho Hỏng / RMA';
+    }
+
+    rowsHtml += `
+      <tr>
+        <td style="text-align:center">${idx + 1}</td>
+        <td>
+          <strong>${p.name}</strong>
+          ${p.serialNo ? `<br><small style="color:#2563EB">SN: <strong>${p.serialNo}</strong></small>` : ''}
+        </td>
+        <td style="text-align:center"><strong>${p.qty}</strong> ${p.unit}</td>
+        <td style="text-align:center">
+          ${
+            isGood
+              ? '<span style="color:#16A34A; font-weight:700">✅ Còn tốt / Thừa</span><br><small style="color:#64748B">(' + destLabel + ')</small>'
+              : '<span style="color:#DC2626; font-weight:700">⚠️ Bị hỏng / Lỗi</span><br><small style="color:#64748B">(' + destLabel + ')</small>'
+          }
+        </td>
+        <td>${p.reason || (isGood ? 'Vật tư dùng thừa sau thi công' : 'Lỗi kỹ thuật')}</td>
+      </tr>
+    `;
+  });
+
+  const slipContent = `
+    <div class="slip-container" id="printable-return-area">
+      <!-- THÔNG TIN DOANH NGHIỆP TRÊN ĐẦU PHIẾU (THEO MẪU CÔNG TY ANT LUCENT) -->
+      <div class="slip-company-header">
+        <div class="slip-company-logo">
+          <img src="${ANT_LUCENT_LOGO_B64}" alt="Logo Ant Lucent">
+        </div>
+        <div class="slip-company-info">
+          <div class="slip-company-name">Công Ty Cổ Phần Công Nghệ Ant Lucent</div>
+          <div class="slip-company-line">Địa chỉ : 152 Thụy Khuê , Q.Tây Hồ, Hà Nội</div>
+          <div class="slip-company-line slip-company-flex">
+            <span>Điện thoại :</span>
+            <span>Fax : 848-4-9347503</span>
+          </div>
+          <div class="slip-company-line">Email : infor@jsc.com.vn</div>
+          <div class="slip-company-line">Website : www.jsc.com.vn</div>
+        </div>
+      </div>
+
+      <div class="slip-header">
+        <h2>PHIẾU NHẬP HOÀN KHO VẬT TƯ & THIẾT BỊ</h2>
+        <p style="font-size:0.85rem; color:#64748B">Biên bản bàn giao, thu hồi vật tư thừa & tiếp nhận thiết bị sự cố</p>
+      </div>
+
+      <div class="slip-meta-grid">
+        <div><strong>Dự án / Công trình:</strong> ${returnData.project}</div>
+        <div><strong>Thời gian hoàn kho:</strong> ${returnData.date}</div>
+        <div><strong>Khách hàng:</strong> ${returnData.customer || 'Đơn vị dự án'}</div>
+        <div><strong>Mã phiếu hoàn kho:</strong> <span style="color:#0284C7; font-weight:700">${returnData.id}</span></div>
+        <div><strong>Kỹ thuật viên bàn giao:</strong> ${returnData.tech}</div>
+        <div><strong>Thủ kho tiếp nhận:</strong> ${returnData.keeper}</div>
+      </div>
+
+      <table class="slip-table">
+        <thead>
+          <tr>
+            <th style="width:35px; text-align:center">STT</th>
+            <th>Tên vật tư / Thiết bị</th>
+            <th style="width:95px; text-align:center">Số lượng</th>
+            <th style="width:150px; text-align:center">Phân loại tình trạng</th>
+            <th>Lý do / Hiện tượng lỗi</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+
+      <div class="slip-signatures">
+        <div class="sig-col">
+          <div class="sig-title">KỸ THUẬT VIÊN BÀN GIAO</div>
+          <div class="sig-note">(Ký xác nhận bàn giao)</div>
+          <div class="sig-space"></div>
+          <div class="sig-name">${returnData.tech}</div>
+        </div>
+        <div class="sig-col">
+          <div class="sig-title">THỦ KHO TIẾP NHẬN</div>
+          <div class="sig-note">(Ký xác nhận nhập kho)</div>
+          <div class="sig-space"></div>
+          <div class="sig-name">${returnData.keeper}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('return-slip-print-content').innerHTML = slipContent;
+
+  const btnConfirm = document.getElementById('btn-confirm-return-stock');
+  if (btnConfirm) {
+    if (isPreviewOnly) {
+      btnConfirm.style.display = 'none';
+    } else {
+      btnConfirm.style.display = 'inline-block';
+    }
+  }
+
+  document.getElementById('modal-return-slip').classList.add('open');
+}
+
+// Xác nhận nhập hoàn kho: cộng tồn kho tốt / chuyển kho hỏng, lưu lịch sử & đóng modal
+function confirmReturnStock() {
+  if (store.currentUser.role !== 'admin') return;
+  if (!currentActiveReturnData || !currentActiveReturnData.items || currentActiveReturnData.items.length === 0) {
+    showToast('Không có dữ liệu hoàn kho hợp lệ!', 'error');
+    return;
+  }
+
+  const data = currentActiveReturnData;
+
+  // Xử lý từng món vật tư
+  data.items.forEach((p) => {
+    const item = store.inventory.find((i) => i.id === p.id || i.name === p.name);
+    if (p.condition === 'good') {
+      if (item) {
+        item.qty += p.qty;
+      }
+    } else {
+      // Đưa vào Kho Hỏng & Bảo Hành (defectiveItems)
+      const newDefective = {
+        id: 'DEF-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+        month: store.currentMonth,
+        date: data.date,
+        itemId: item ? item.id : 'VT-DEF',
+        itemName: p.name,
+        hasSerial: p.hasSerial || !!p.serialNo,
+        serialNo: p.serialNo || '',
+        qty: p.qty,
+        unit: p.unit,
+        sourceProject: data.project + (data.tech ? ' (KTV: ' + data.tech + ')' : ''),
+        errorDesc: p.reason || 'Lỗi kỹ thuật khi thi công',
+        type: p.dest || 'repair', // 'repair' | 'warranty' | 'scrap'
+        vendorName: '',
+        rmaCode: '',
+        sentDate: '',
+        notes: `Hoàn từ phiếu ${data.id}`,
+        liquidatedAt: ''
+      };
+      store.defectiveItems.unshift(newDefective);
+
+      // Nếu có Serial Number trùng trong kho thì cập nhật trạng thái
+      if (p.serialNo) {
+        const foundSn = store.serials.find((s) => s.sn.toLowerCase() === p.serialNo.toLowerCase());
+        if (foundSn) {
+          foundSn.status = 'Hỏng/Bảo hành';
+          foundSn.tech = data.tech;
+          foundSn.project = data.project;
+          foundSn.updated = new Date().toLocaleDateString('vi-VN');
+        }
+      }
+    }
+  });
+
+  // Lưu bản ghi vào returnHistory
+  store.returnHistory.unshift({
+    id: data.id,
+    date: data.date,
+    month: store.currentMonth,
+    project: data.project,
+    customer: data.customer,
+    tech: data.tech,
+    keeper: data.keeper,
+    items: data.items,
+    item: data.items.map((i) => i.name).join(', '),
+    qty: data.items.reduce((sum, i) => sum + i.qty, 0),
+    unit: data.items[0]?.unit || 'Món',
+    condition: data.items.some((i) => i.condition === 'defective') ? 'defective' : 'good',
+    note: data.items.map((i) => `${i.name}: ${i.reason || (i.condition === 'good' ? 'Thừa' : 'Lỗi')}`).join('; ')
+  });
+
+  store.save();
+  renderAll();
+
+  // Reset giỏ hoàn trả & form
+  store.returnCart = [];
+  renderReturnCart();
+  const formReturn = document.getElementById('form-return');
+  if (formReturn) formReturn.reset();
+  const returnDefectiveOptions = document.getElementById('return-defective-options');
+  if (returnDefectiveOptions) returnDefectiveOptions.classList.add('hidden');
+
+  // Đóng modal
+  document.getElementById('modal-return-slip').classList.remove('open');
+  showToast(`Đã xác nhận nhập hoàn kho thành công theo phiếu "${data.id}"!`, 'success');
+
+  if (store.sheetApiUrl) pushToGoogleSheet(false);
+}
+
+// Sao chép nội dung phiếu hoàn kho gửi Zalo/Telegram
+function copyReturnSlip() {
+  if (!currentActiveReturnData) return;
+  const d = currentActiveReturnData;
+  const items = d.items && d.items.length > 0 ? d.items : [d];
+
+  let itemsText = '';
+  items.forEach((p, idx) => {
+    const isGood = p.condition === 'good';
+    let destLabel = 'Nhập tồn khả dụng';
+    if (!isGood) {
+      if (p.dest === 'repair') destLabel = 'Chờ sửa chữa';
+      else if (p.dest === 'warranty') destLabel = 'Bảo hành hãng';
+      else if (p.dest === 'scrap') destLabel = 'Chờ thanh lý';
+      else destLabel = 'Kho Hỏng / RMA';
+    }
+    const condText = isGood ? '✅ Còn tốt / Thừa' : '⚠️ Bị hỏng / Lỗi (' + destLabel + ')';
+    const snText = p.serialNo ? ` [SN: ${p.serialNo}]` : '';
+    const noteText = p.reason ? ` - Ghi chú: ${p.reason}` : '';
+    itemsText += `${idx + 1}. ${p.name || p.item}: ${p.qty} ${p.unit}${snText}\n   └ ${condText}${noteText}\n`;
+  });
+
+  const text = `📋 PHIẾU NHẬP HOÀN KHO VẬT TƯ & THIẾT BỊ
+🏢 Công Ty Cổ Phần Công Nghệ Ant Lucent
+----------------------------------------
+Mã phiếu: ${d.id}
+Thời gian: ${d.date}
+Dự án: ${d.project}
+Khách hàng: ${d.customer || 'Đơn vị dự án'}
+KTV bàn giao: ${d.tech}
+Thủ kho tiếp nhận: ${d.keeper}
+----------------------------------------
+DANH SÁCH VẬT TƯ BÀN GIAO:
+${itemsText}----------------------------------------
+👉 Hai bên đã kiểm tra số lượng và xác nhận nhập hoàn kho!`;
+
+  navigator.clipboard.writeText(text).then(
+    () => {
+      showToast('📋 Đã sao chép phiếu hoàn kho gửi Zalo/Telegram!', 'success');
+    },
+    () => {
+      showToast('Không thể sao chép tự động. Hãy chụp màn hình!', 'error');
+    }
+  );
+}
+
+// Xem & in lại phiếu hoàn kho từ mã ID
+window.viewReturnSlipById = function (returnId) {
+  const rec = store.returnHistory.find((r) => r.id === returnId);
+  if (!rec) {
+    showToast('Không tìm thấy thông tin phiếu hoàn kho này!', 'error');
+    return;
+  }
+  const returnData = {
+    id: rec.id,
+    date: rec.date || new Date().toLocaleString('vi-VN'),
+    project: rec.project || 'Dự án hoàn trả',
+    customer: rec.customer || '',
+    tech: rec.tech || 'Kỹ thuật viên',
+    keeper: rec.keeper || 'Hoàng Văn Dỹ',
+    items: rec.items || [
+      {
+        name: rec.item,
+        qty: rec.qty,
+        unit: rec.unit,
+        condition: rec.condition,
+        reason: rec.note
+      }
+    ]
+  };
+  openReturnSlipModal(returnData, true);
+};
+
 function renderReturnHistory() {
   const container = document.getElementById('return-history-list');
   if (!container) return;
@@ -2251,18 +2689,28 @@ function renderReturnHistory() {
   }
 
   container.innerHTML = store.returnHistory
-    .slice(0, 5)
-    .map(
-      (r) => `
-      <div style="padding:8px 0; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center">
+    .slice(0, 10)
+    .map((r) => {
+      const isGood = r.condition === 'good';
+      const itemCount = r.items ? r.items.length : 1;
+      return `
+      <div style="padding:10px 0; border-bottom:1px solid rgba(255,255,255,0.06); display:flex; justify-content:space-between; align-items:center; gap:8px">
         <div>
-          <strong>${r.item}</strong> (${r.qty} ${r.unit}) - ${r.condition === 'good' ? '<span class="text-success">Còn tốt</span>' : '<span class="text-danger">Bị hỏng/RMA</span>'}
-          <div class="text-muted" style="font-size:0.75rem">${r.project} • ${r.date}</div>
+          <div class="d-flex align-center gap-2">
+            <span style="font-weight:700; color:#38BDF8">${r.id || 'HK'}</span>
+            <strong>${r.project || 'Công trình'}</strong>
+            <span class="status-badge ${isGood ? 'status-in-stock' : 'status-defective'}" style="font-size:0.68rem; padding:1px 6px">
+              ${isGood ? '✅ Còn tốt' : '⚠️ Bị hỏng'}
+            </span>
+          </div>
+          <div class="text-muted" style="font-size:0.75rem; margin-top:2px">
+            👤 KTV: <strong>${r.tech || 'KTV'}</strong> • 📅 ${r.date} • ${itemCount > 1 ? `${itemCount} món (${r.item})` : `${r.item} (+${r.qty} ${r.unit})`}
+          </div>
         </div>
-        <small class="text-muted">${r.note}</small>
+        <button class="btn-card-view-slip" onclick="viewReturnSlipById('${r.id}')">📄 Xem Phiếu</button>
       </div>
-    `
-    )
+    `;
+    })
     .join('');
 }
 
@@ -2557,6 +3005,7 @@ async function pushToGoogleSheet(showFeedback = true) {
       month: store.currentMonth,
       inventory: store.inventory,
       dispatchHistory: store.dispatchHistory,
+      returnHistory: store.returnHistory,
       serials: store.serials,
       defectiveItems: store.defectiveItems,
       invoices: store.invoices
@@ -2693,6 +3142,20 @@ function initModals() {
       .then(() => showToast('Đã sao chép nội dung phiếu! Bạn có thể dán vào Zalo/Telegram.', 'success'))
       .catch(() => showToast('Không thể sao chép tự động.', 'error'));
   };
+
+  // Nút trên Modal Phiếu Nhập Hoàn Kho
+  const btnPrintReturn = document.getElementById('btn-print-return-slip');
+  if (btnPrintReturn) {
+    btnPrintReturn.onclick = () => window.print();
+  }
+  const btnCopyReturn = document.getElementById('btn-copy-return-slip');
+  if (btnCopyReturn) {
+    btnCopyReturn.onclick = () => copyReturnSlip();
+  }
+  const btnConfirmReturn = document.getElementById('btn-confirm-return-stock');
+  if (btnConfirmReturn) {
+    btnConfirmReturn.onclick = () => confirmReturnStock();
+  }
 
   // Search input in history
   const historySearch = document.getElementById('history-search');

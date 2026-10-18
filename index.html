@@ -25,7 +25,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <link rel="stylesheet" href="style.css?v=4.3">
+  <link rel="stylesheet" href="style.css?v=4.4">
 </head>
 <body>
   <!-- Header Bar -->
@@ -356,79 +356,128 @@ CAM-2026-003"></textarea>
       <!-- VIEW 2: HOÀN TRẢ CÔNG TRÌNH -->
       <div id="view-return" class="in-out-view">
         <div class="card p-4">
-          <h2 class="card-title">Tiếp Nhận Hoàn Trả Sau Thi Công</h2>
-          <p class="text-muted text-sm mb-4">Thu hồi vật tư dùng thừa và phân loại hàng hỏng/lỗi cách ly bảo hành</p>
+          <div class="d-flex justify-between align-center mb-2">
+            <div>
+              <h2 class="card-title">Tiếp Nhận Hoàn Trả Sau Thi Công</h2>
+              <p class="text-muted text-sm">Thu hồi vật tư thừa & phân loại thiết bị lỗi, xuất giấy ký nhận hai bên</p>
+            </div>
+            <span class="badge-out-restock" style="background:rgba(16,185,129,0.15); color:var(--emerald); border-color:rgba(16,185,129,0.3)">📥 Nhập Hoàn Kho</span>
+          </div>
 
           <form id="form-return">
-            <div class="form-group mb-3">
-              <label for="return-project-name">Công trình hoàn trả / Kỹ thuật viên</label>
-              <input type="text" id="return-project-name" class="input-field" placeholder="VD: Nhà xưởng Tân Bình - KTV Nguyễn Văn A" required>
-            </div>
-
-            <div class="form-group mb-3">
-              <label for="return-item-select">Chọn vật tư hoàn trả</label>
-              <select id="return-item-select" class="input-field" required>
-                <!-- Dynamic -->
-              </select>
-            </div>
-
-            <div class="form-group mb-3">
-              <label>Tình trạng vật tư:</label>
-              <div class="radio-cards">
-                <label class="radio-card">
-                  <input type="radio" name="return_condition" value="good" checked>
-                  <div class="radio-card-body">
-                    <strong class="text-success">✅ Còn tốt / Thừa</strong>
-                    <small>Sẽ cộng trả lại vào Tồn kho khả dụng</small>
-                  </div>
-                </label>
-                <label class="radio-card">
-                  <input type="radio" name="return_condition" value="defective">
-                  <div class="radio-card-body">
-                    <strong class="text-danger">⚠️ Bị hỏng / Lỗi kỹ thuật</strong>
-                    <small>Đưa vào kho cách ly Bảo hành (RMA), KHÔNG cộng kho bán</small>
-                  </div>
-                </label>
+            <!-- Thông tin phiếu hoàn kho -->
+            <div class="form-grid mb-3">
+              <div class="form-group">
+                <label for="return-project-name">Tên dự án / Công trình hoàn trả</label>
+                <input type="text" id="return-project-name" class="input-field" placeholder="VD: Dự án 760, Nhà xưởng Tân Bình..." required>
+              </div>
+              <div class="form-group">
+                <label for="return-customer-name">Khách hàng / Đơn vị (tùy chọn)</label>
+                <input type="text" id="return-customer-name" class="input-field" placeholder="VD: Hưng Yên, Petrolimex...">
+              </div>
+              <div class="form-group">
+                <label for="return-tech-name">Kỹ thuật viên bàn giao (Hoàn đồ)</label>
+                <input type="text" id="return-tech-name" class="input-field" placeholder="VD: Ngô Quý Phi" required>
+              </div>
+              <div class="form-group">
+                <label for="return-keeper-name">Thủ kho tiếp nhận</label>
+                <input type="text" id="return-keeper-name" class="input-field" value="Hoàng Văn Dỹ">
               </div>
             </div>
 
-            <!-- Phân loại hướng xử lý nếu hỏng -->
-            <div id="return-defective-options" class="form-group mb-3 hidden p-3" style="background:rgba(244,63,94,0.06); border:1px solid rgba(244,63,94,0.3); border-radius:8px">
-              <label for="return-defective-dest" style="color:var(--rose); font-weight:700">⚠️ Hướng xử lý đưa vào Kho Hỏng:</label>
-              <select id="return-defective-dest" class="input-field">
-                <option value="repair">🔧 Chờ sửa chữa (Nội bộ kho/thợ tự khắc phục)</option>
-                <option value="warranty">🛡️ Cần mang đến Hãng bảo hành</option>
-                <option value="scrap">🗑️ Hỏng nặng không thể sửa (Chờ thanh lý)</option>
-              </select>
+            <!-- Thêm vật tư vào phiếu hoàn -->
+            <div class="card p-3 mb-3" style="background: rgba(255,255,255,0.02); border: 1px dashed var(--border-subtle)">
+              <div class="d-flex justify-between align-center mb-2">
+                <strong style="font-size:0.88rem; color:#38BDF8">📦 Chi Tiết Vật Tư / Thiết Bị Hoàn Trả</strong>
+                <span class="text-xs text-muted">Có thể thêm nhiều món vào 1 phiếu</span>
+              </div>
+
+              <div class="form-group mb-3">
+                <label for="return-item-select">Chọn vật tư hoàn trả</label>
+                <select id="return-item-select" class="input-field">
+                  <!-- Dynamic -->
+                </select>
+              </div>
+
+              <div class="form-group mb-3">
+                <label>Tình trạng vật tư:</label>
+                <div class="radio-cards">
+                  <label class="radio-card">
+                    <input type="radio" name="return_condition" value="good" checked>
+                    <div class="radio-card-body">
+                      <strong class="text-success">✅ Còn tốt / Thừa</strong>
+                      <small>Sẽ cộng trả lại vào Tồn kho khả dụng để dùng tiếp</small>
+                    </div>
+                  </label>
+                  <label class="radio-card">
+                    <input type="radio" name="return_condition" value="defective">
+                    <div class="radio-card-body">
+                      <strong class="text-danger">⚠️ Bị hỏng / Lỗi kỹ thuật</strong>
+                      <small>Đưa vào kho cách ly Bảo hành (RMA), KHÔNG cộng kho bán</small>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Phân loại hướng xử lý nếu hỏng -->
+              <div id="return-defective-options" class="form-group mb-3 hidden p-3" style="background:rgba(244,63,94,0.06); border:1px solid rgba(244,63,94,0.3); border-radius:8px">
+                <label for="return-defective-dest" style="color:var(--rose); font-weight:700">⚠️ Hướng xử lý đưa vào Kho Hỏng:</label>
+                <select id="return-defective-dest" class="input-field">
+                  <option value="repair">🔧 Chờ sửa chữa (Nội bộ kho/thợ tự khắc phục)</option>
+                  <option value="warranty">🛡️ Cần mang đến Hãng bảo hành</option>
+                  <option value="scrap">🗑️ Hỏng nặng không thể sửa (Chờ thanh lý)</option>
+                </select>
+              </div>
+
+              <div class="form-grid mb-3">
+                <div class="form-group" id="return-qty-group">
+                  <label for="return-quantity">Số lượng / Số mét (<span id="return-unit-display">Cái</span>)</label>
+                  <input type="number" id="return-quantity" class="input-field" min="1" value="1">
+                </div>
+                <div class="form-group" id="return-serial-group">
+                  <label for="return-serial-input">Mã Serial SN (nếu có)</label>
+                  <input type="text" id="return-serial-input" class="input-field" placeholder="VD: CAM-SN-2603 hoặc BOX-SN-8802">
+                </div>
+              </div>
+
+              <div class="form-group mb-3">
+                <label for="return-reason">Lý do hoàn trả / Mô tả lỗi</label>
+                <input type="text" id="return-reason" class="input-field" placeholder="VD: Thừa 20m thi công / Cảm biến mất nguồn">
+              </div>
+
+              <button type="button" id="btn-add-return-item" class="btn btn-secondary w-full">
+                + Thêm Vào Danh Sách Hoàn Này
+              </button>
             </div>
 
-            <div class="form-group mb-3" id="return-qty-group">
-              <label for="return-quantity">Số lượng / Số mét hoàn trả</label>
-              <input type="number" id="return-quantity" class="input-field" min="1" value="1" required>
+            <!-- Giỏ vật tư chuẩn bị xuất phiếu hoàn -->
+            <div class="card p-3 mb-3" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-subtle)">
+              <div class="d-flex justify-between align-center mb-2">
+                <strong style="font-size:0.88rem; color:var(--text-main)">📋 Danh Sách Vật Tư Trong Phiếu (<span id="return-cart-count">0</span> món)</strong>
+                <button type="button" id="btn-clear-return-cart" class="btn-sm text-danger" style="display:none">Xóa hết</button>
+              </div>
+              <div id="return-cart-list" class="picking-cart-empty" style="padding:12px; font-size:0.82rem">
+                Chưa có món nào được thêm. Hãy bấm nút "+ Thêm Vào Danh Sách Hoàn Này" ở trên!
+              </div>
             </div>
 
-            <!-- Serial selection if serialized item -->
-            <div class="form-group mb-3 hidden" id="return-serial-group">
-              <label for="return-serial-select">Chọn mã Serial thiết bị</label>
-              <select id="return-serial-select" class="input-field">
-                <!-- Dynamic from loaned/deployed serials -->
-              </select>
+            <div class="action-buttons-row">
+              <button type="submit" class="btn btn-primary w-full" id="btn-submit-return-slip">
+                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                Xuất Phiếu Nhập Hoàn Kho Vật Tư & Thiết Bị
+              </button>
             </div>
-
-            <div class="form-group mb-4">
-              <label for="return-reason">Lý do hoàn trả / Mô tả lỗi (nếu có)</label>
-              <input type="text" id="return-reason" class="input-field" placeholder="VD: Thừa 15m dây loa / Cảm biến rung số bị lỗi nguồn">
-            </div>
-
-            <button type="submit" class="btn btn-primary w-full">
-              Lưu Biên Bản Hoàn Trả
-            </button>
           </form>
         </div>
 
         <!-- History of Returns -->
         <div class="card p-4 mt-4">
-          <h3 class="card-title mb-3">Lịch sử hoàn trả gần đây</h3>
+          <div class="d-flex justify-between align-center mb-3">
+            <div>
+              <h3 class="card-title">Lịch sử hoàn trả gần đây</h3>
+              <p class="text-muted text-sm">Xem và in lại các phiếu nhập hoàn kho đã tiếp nhận</p>
+            </div>
+          </div>
           <div id="return-history-list" class="text-sm">
             <!-- Dynamic -->
           </div>
@@ -678,6 +727,24 @@ CAM-2026-003"></textarea>
         <button type="button" class="btn btn-secondary" id="btn-copy-slip">📋 Sao Chép Gửi Zalo</button>
         <button type="button" class="btn btn-secondary" id="btn-print-slip">🖨️ In Phiếu / PDF</button>
         <button type="button" class="btn btn-primary admin-only" id="btn-confirm-dispatch">✅ Xác Nhận Đã Xuất Kho</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: XUẤT PHIẾU NHẬP HOÀN KHO VẬT TƯ & THIẾT BỊ (VIEW / PRINT) -->
+  <div id="modal-return-slip" class="modal-backdrop">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">Phiếu Nhập Hoàn Kho Vật Tư & Thiết Bị</h3>
+        <button class="modal-close" data-close="modal-return-slip">&times;</button>
+      </div>
+      <div class="modal-body" id="return-slip-print-content">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-copy-return-slip">📋 Sao Chép Gửi Zalo</button>
+        <button type="button" class="btn btn-secondary" id="btn-print-return-slip">🖨️ In Phiếu / PDF</button>
+        <button type="button" class="btn btn-primary admin-only" id="btn-confirm-return-stock">✅ Xác Nhận Đã Nhập Hoàn Kho</button>
       </div>
     </div>
   </div>
@@ -985,6 +1052,6 @@ CAM-2026-003"></textarea>
   <!-- Toast Notification Container -->
   <div id="toast-container" class="toast-container"></div>
 
-  <script src="app.js?v=4.3"></script>
+  <script src="app.js?v=4.4"></script>
 </body>
 </html>
