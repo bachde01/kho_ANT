@@ -1080,28 +1080,57 @@ window.removePickItem = function (idx) {
 const ANT_LUCENT_LOGO_B64 = 'data:image/png;base64,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';
 
 function openPickingSlipModal() {
+  // 1. Nếu giỏ xuất đang trống, tự động thêm món đang chọn ở dropdown xuống giỏ
   if (store.pickingCart.length === 0) {
-    showToast('Vui lòng chọn ít nhất 1 vật tư để xuất phiếu!', 'error');
-    return;
+    const addSelect = document.getElementById('pick-add-select');
+    const addQty = parseInt(document.getElementById('pick-add-qty')?.value) || 1;
+    if (addSelect && addSelect.value) {
+      const item = store.inventory.find((i) => i.id === addSelect.value);
+      if (item) {
+        store.pickingCart.push({
+          itemId: item.id,
+          name: item.name,
+          category: item.category,
+          unit: item.unit,
+          qty: addQty,
+          hasSerial: item.hasSerial
+        });
+        renderPickingCart();
+      }
+    }
   }
 
-  const projectName = document.getElementById('pick-project-name').value.trim() || 'Dự án chưa đặt tên';
+  const projectName = document.getElementById('pick-project-name')?.value.trim() || 'Dự án / Công trình thi công';
   const customerName = document.getElementById('pick-customer-name') ? document.getElementById('pick-customer-name').value.trim() : '';
-  const techName = document.getElementById('pick-tech-name').value.trim() || 'Kỹ thuật viên';
+  const techName = document.getElementById('pick-tech-name')?.value.trim() || 'Kỹ thuật viên nhận đồ';
   const keeperName = document.getElementById('pick-keeper-name') ? document.getElementById('pick-keeper-name').value.trim() : 'Hoàng Văn Dỹ';
   const today = new Date().toLocaleDateString('vi-VN');
 
   let rowsHtml = '';
-  store.pickingCart.forEach((p, i) => {
-    rowsHtml += `
-      <tr>
-        <td style="text-align:center">${i + 1}</td>
-        <td><strong>${p.name}</strong> ${p.hasSerial ? '<br><small style="color:#DC2626">Ghi SN: .......................................</small>' : ''}</td>
-        <td style="text-align:center">${p.qty} ${p.unit}</td>
-        <td style="text-align:center">....... ${p.unit}</td>
-      </tr>
-    `;
-  });
+  if (store.pickingCart.length > 0) {
+    store.pickingCart.forEach((p, i) => {
+      rowsHtml += `
+        <tr>
+          <td style="text-align:center">${i + 1}</td>
+          <td><strong>${p.name}</strong> ${p.hasSerial ? '<br><small style="color:#DC2626">Ghi SN: .......................................</small>' : ''}</td>
+          <td style="text-align:center">${p.qty} ${p.unit}</td>
+          <td style="text-align:center">....... ${p.unit}</td>
+        </tr>
+      `;
+    });
+  } else {
+    // Nếu vẫn chưa chọn món nào, tạo sẵn 5 dòng kẻ chấm để in ra ghi tay
+    for (let i = 1; i <= 5; i++) {
+      rowsHtml += `
+        <tr>
+          <td style="text-align:center">${i}</td>
+          <td>..................................................................................</td>
+          <td style="text-align:center">.......</td>
+          <td style="text-align:center">.......</td>
+        </tr>
+      `;
+    }
+  }
 
   const slipContent = `
     <div class="slip-container" id="printable-area">
@@ -1168,8 +1197,120 @@ function openPickingSlipModal() {
   `;
 
   document.getElementById('picking-slip-print-content').innerHTML = slipContent;
-  document.getElementById('modal-picking-slip').classList.add('open');
+  const btnConfirm = document.getElementById('btn-confirm-dispatch');
+  if (btnConfirm) btnConfirm.style.display = 'inline-block';
+
+  const modal = document.getElementById('modal-picking-slip');
+  if (modal) {
+    modal.classList.add('open');
+    modal.scrollTop = 0;
+    const dialog = modal.querySelector('.modal-dialog');
+    if (dialog) dialog.scrollTop = 0;
+  }
 }
+
+// Xem lại phiếu xuất kho đã lưu từ lịch sử
+window.viewDispatchSlipById = function (dispatchId) {
+  const rec = (store.dispatchHistory || []).find((d) => d.id === dispatchId);
+  if (!rec) {
+    showToast('Không tìm thấy thông tin phiếu xuất kho này!', 'error');
+    return;
+  }
+
+  const projectName = rec.project || 'Dự án thi công';
+  const customerName = rec.customer || '';
+  const techName = rec.tech || 'Kỹ thuật viên nhận đồ';
+  const keeperName = rec.keeper || 'Hoàng Văn Dỹ';
+  const today = rec.date || new Date().toLocaleDateString('vi-VN');
+
+  let rowsHtml = '';
+  const items = rec.items && rec.items.length > 0 ? rec.items : [{ name: rec.itemsSummary || 'Vật tư thi công', qty: 1, unit: 'Bộ' }];
+  items.forEach((p, i) => {
+    rowsHtml += `
+      <tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td><strong>${p.name}</strong> ${p.sn ? `<br><small style="color:#0284C7">SN: <strong>${p.sn}</strong></small>` : ''}</td>
+        <td style="text-align:center">${p.qty} ${p.unit || ''}</td>
+        <td style="text-align:center">${p.qty} ${p.unit || ''}</td>
+      </tr>
+    `;
+  });
+
+  const slipContent = `
+    <div class="slip-container" id="printable-area">
+      <div class="slip-company-header">
+        <div class="slip-company-logo">
+          <img src="${ANT_LUCENT_LOGO_B64}" alt="Logo Ant Lucent">
+        </div>
+        <div class="slip-company-info">
+          <div class="slip-company-name">Công Ty Cổ Phần Công Nghệ Ant Lucent</div>
+          <div class="slip-company-line">Địa chỉ : 152 Thụy Khuê , Q.Tây Hồ, Hà Nội</div>
+          <div class="slip-company-line slip-company-flex">
+            <span>Điện thoại :</span>
+            <span>Fax : 848-4-9347503</span>
+          </div>
+          <div class="slip-company-line">Email : infor@jsc.com.vn</div>
+          <div class="slip-company-line">Website : www.jsc.com.vn</div>
+        </div>
+      </div>
+
+      <div class="slip-header">
+        <h2>PHIẾU XUẤT VẬT TƯ LẮP ĐẶT</h2>
+        <p style="font-size:0.85rem; color:#64748B">Hệ thống Camera Giám Sát & Controller Báo Động</p>
+      </div>
+
+      <div class="slip-meta-grid">
+        <div><strong>Dự án / Công trình:</strong> ${projectName}</div>
+        <div><strong>Ngày xuất kho:</strong> ${today}</div>
+        <div><strong>Khách hàng:</strong> ${customerName || 'Đơn vị dự án'}</div>
+        <div><strong>Thủ kho xuất hàng:</strong> ${keeperName}</div>
+        <div><strong>Kỹ thuật viên phụ trách:</strong> ${techName}</div>
+        <div><strong>Mã phiếu xuất:</strong> <span style="color:#0284C7; font-weight:700">${rec.id}</span></div>
+      </div>
+
+      <table class="slip-table">
+        <thead>
+          <tr>
+            <th style="width:40px; text-align:center">STT</th>
+            <th>Tên vật tư / Thiết bị</th>
+            <th style="width:110px; text-align:center">Yêu cầu</th>
+            <th style="width:120px; text-align:center">Thực xuất</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsHtml}
+        </tbody>
+      </table>
+
+      <div class="slip-signatures">
+        <div class="sig-col">
+          <div class="sig-title">KỸ THUẬT VIÊN NHẬN ĐỒ</div>
+          <div class="sig-note">(Ký nhận)</div>
+          <div class="sig-space"></div>
+          <div class="sig-name">${techName}</div>
+        </div>
+        <div class="sig-col">
+          <div class="sig-title">THỦ KHO XUẤT HÀNG</div>
+          <div class="sig-note">(Ký nhận)</div>
+          <div class="sig-space"></div>
+          <div class="sig-name">${keeperName}</div>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('picking-slip-print-content').innerHTML = slipContent;
+  const btnConfirm = document.getElementById('btn-confirm-dispatch');
+  if (btnConfirm) btnConfirm.style.display = 'none';
+
+  const modal = document.getElementById('modal-picking-slip');
+  if (modal) {
+    modal.classList.add('open');
+    modal.scrollTop = 0;
+    const dialog = modal.querySelector('.modal-dialog');
+    if (dialog) dialog.scrollTop = 0;
+  }
+};
 
 // 8. WAREHOUSE HISTORY LOG (NHẬT KÝ XUẤT - NHẬP KHO & HÓA ĐƠN CHO BAN LÃNH ĐẠO)
 let currentHistoryFilter = 'all';
@@ -1269,7 +1410,10 @@ function renderDispatchHistory() {
               </div>
               <p class="dispatch-meta">👤 KTV nhận: <strong>${rec.tech}</strong> • 📅 ${rec.date}</p>
             </div>
-            <span class="status-badge ${rec.status === 'Đang thi công' ? 'status-deploying' : 'status-in-stock'}">${rec.status || 'Đã xuất kho'}</span>
+            <div class="d-flex align-center gap-2">
+              <button class="btn-card-view-slip" onclick="viewDispatchSlipById('${rec.id}')">📄 Xem Phiếu Xuất</button>
+              <span class="status-badge ${rec.status === 'Đang thi công' ? 'status-deploying' : 'status-in-stock'}">${rec.status || 'Đã xuất kho'}</span>
+            </div>
           </div>
           <div class="dispatch-items-container">
             ${itemsHtml}
@@ -1633,76 +1777,78 @@ function initInwardAndReturn() {
     };
   }
 
-  // Form Return Submit (Xuất Phiếu Nhập Hoàn Kho & Giấy Ký Hai Bên)
+  // Xử lý sự kiện bấm "Xuất Phiếu Nhập Hoàn Kho Vật Tư & Thiết Bị"
+  const handleExportReturnSlip = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const projectName = document.getElementById('return-project-name')?.value.trim() || 'Công trình / Dự án hoàn trả';
+    const customerName = document.getElementById('return-customer-name') ? document.getElementById('return-customer-name').value.trim() : '';
+    const techName = document.getElementById('return-tech-name')?.value.trim() || 'Kỹ thuật viên bàn giao';
+    const keeperName = document.getElementById('return-keeper-name') ? document.getElementById('return-keeper-name').value.trim() : 'Hoàng Văn Dỹ';
+
+    // Nếu giỏ hoàn đang trống, tự động lấy thông tin từ dropdown vật tư
+    if (store.returnCart.length === 0) {
+      const select = document.getElementById('return-item-select');
+      const itemId = select ? select.value : '';
+      const item = store.inventory.find((i) => i.id === itemId) || store.inventory[0];
+      if (item) {
+        const qty = parseInt(document.getElementById('return-quantity')?.value) || 1;
+        const condition = document.querySelector('input[name="return_condition"]:checked')?.value || 'good';
+        const defectiveDest = document.getElementById('return-defective-dest')?.value || 'repair';
+        const serialNo = document.getElementById('return-serial-input')?.value.trim() || '';
+        const reason = document.getElementById('return-reason')?.value.trim() || '';
+
+        store.returnCart.push({
+          id: item.id,
+          name: item.name,
+          category: item.category,
+          unit: item.unit,
+          qty: qty,
+          hasSerial: item.hasSerial,
+          serialNo: serialNo,
+          condition: condition,
+          dest: condition === 'defective' ? defectiveDest : '',
+          reason: reason
+        });
+        renderReturnCart();
+      }
+    }
+
+    const returnData = {
+      id: 'HK-' + Date.now(),
+      date: new Date().toLocaleString('vi-VN'),
+      month: store.currentMonth,
+      project: projectName,
+      customer: customerName,
+      tech: techName,
+      keeper: keeperName,
+      items: store.returnCart.length > 0 ? [...store.returnCart] : [
+        {
+          name: 'Vật tư thi công hoàn trả',
+          qty: 1,
+          unit: 'Món',
+          condition: 'good',
+          dest: '',
+          reason: 'Hoàn kho sau thi công'
+        }
+      ],
+      item: store.returnCart.map((i) => i.name).join(', ') || 'Vật tư thi công',
+      qty: store.returnCart.reduce((sum, i) => sum + i.qty, 0) || 1,
+      unit: store.returnCart[0]?.unit || 'Món',
+      condition: store.returnCart.some((i) => i.condition === 'defective') ? 'defective' : 'good',
+      note: store.returnCart.map((i) => `${i.name}: ${i.reason || (i.condition === 'good' ? 'Thừa' : 'Lỗi')}`).join('; ')
+    };
+
+    openReturnSlipModal(returnData, false);
+  };
+
+  const btnSubmitReturn = document.getElementById('btn-submit-return-slip');
+  if (btnSubmitReturn) {
+    btnSubmitReturn.onclick = handleExportReturnSlip;
+  }
   const formReturn = document.getElementById('form-return');
   if (formReturn) {
-    formReturn.onsubmit = (e) => {
-      e.preventDefault();
-      if (store.currentUser.role !== 'admin') return;
-
-      const projectName = document.getElementById('return-project-name').value.trim();
-      const customerName = document.getElementById('return-customer-name') ? document.getElementById('return-customer-name').value.trim() : '';
-      const techName = document.getElementById('return-tech-name').value.trim();
-      const keeperName = document.getElementById('return-keeper-name') ? document.getElementById('return-keeper-name').value.trim() : 'Hoàng Văn Dỹ';
-
-      if (!projectName) {
-        showToast('Vui lòng nhập tên dự án / công trình hoàn trả!', 'error');
-        return;
-      }
-      if (!techName) {
-        showToast('Vui lòng nhập tên kỹ thuật viên bàn giao đồ!', 'error');
-        return;
-      }
-
-      // Nếu giỏ hoàn đang trống, tự động lấy thông tin từ form nếu đã chọn vật tư
-      if (store.returnCart.length === 0) {
-        const select = document.getElementById('return-item-select');
-        const itemId = select ? select.value : '';
-        const item = store.inventory.find((i) => i.id === itemId);
-        if (item) {
-          const qty = parseInt(document.getElementById('return-quantity').value) || 1;
-          const condition = document.querySelector('input[name="return_condition"]:checked')?.value || 'good';
-          const defectiveDest = document.getElementById('return-defective-dest')?.value || 'repair';
-          const serialNo = document.getElementById('return-serial-input')?.value.trim() || '';
-          const reason = document.getElementById('return-reason')?.value.trim() || '';
-
-          store.returnCart.push({
-            id: item.id,
-            name: item.name,
-            category: item.category,
-            unit: item.unit,
-            qty: qty,
-            hasSerial: item.hasSerial,
-            serialNo: serialNo,
-            condition: condition,
-            dest: condition === 'defective' ? defectiveDest : '',
-            reason: reason
-          });
-          renderReturnCart();
-        } else {
-          showToast('Vui lòng chọn ít nhất 1 vật tư để xuất phiếu hoàn kho!', 'error');
-          return;
-        }
-      }
-
-      const returnData = {
-        id: 'HK-' + Date.now(),
-        date: new Date().toLocaleString('vi-VN'),
-        month: store.currentMonth,
-        project: projectName,
-        customer: customerName,
-        tech: techName,
-        keeper: keeperName,
-        items: [...store.returnCart],
-        item: store.returnCart.map((i) => i.name).join(', '),
-        qty: store.returnCart.reduce((sum, i) => sum + i.qty, 0),
-        unit: store.returnCart[0]?.unit || 'Món',
-        condition: store.returnCart.some((i) => i.condition === 'defective') ? 'defective' : 'good',
-        note: store.returnCart.map((i) => `${i.name}: ${i.reason || (i.condition === 'good' ? 'Thừa' : 'Lỗi')}`).join('; ')
-      };
-
-      openReturnSlipModal(returnData, false);
-    };
+    formReturn.onsubmit = handleExportReturnSlip;
   }
 
   // Defective Filter Buttons
@@ -2516,7 +2662,13 @@ function openReturnSlipModal(returnData, isPreviewOnly = false) {
     }
   }
 
-  document.getElementById('modal-return-slip').classList.add('open');
+  const modal = document.getElementById('modal-return-slip');
+  if (modal) {
+    modal.classList.add('open');
+    modal.scrollTop = 0;
+    const dialog = modal.querySelector('.modal-dialog');
+    if (dialog) dialog.scrollTop = 0;
+  }
 }
 
 // Xác nhận nhập hoàn kho: cộng tồn kho tốt / chuyển kho hỏng, lưu lịch sử & đóng modal

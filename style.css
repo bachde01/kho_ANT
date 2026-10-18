@@ -1041,13 +1041,13 @@ textarea.input-field {
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 200;
+  z-index: 500;
   padding: 16px;
   animation: fadeIn 0.2s ease-out;
 }
 
 .modal-backdrop.open {
-  display: flex;
+  display: flex !important;
 }
 
 .modal-dialog {
