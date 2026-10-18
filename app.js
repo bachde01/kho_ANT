@@ -1068,6 +1068,9 @@ window.removePickItem = function (idx) {
   renderPickingCart();
 };
 
+// Logo Ant Lucent dạng Data URI chuẩn để in ấn và hiển thị offline không bao giờ bị lỗi
+const ANT_LUCENT_LOGO_B64 = 'data:image/png;base64,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';
+
 function openPickingSlipModal() {
   if (store.pickingCart.length === 0) {
     showToast('Vui lòng chọn ít nhất 1 vật tư để xuất phiếu!', 'error');
@@ -1086,37 +1089,55 @@ function openPickingSlipModal() {
         <td><strong>${p.name}</strong> ${p.hasSerial ? '<br><small style="color:#DC2626">Ghi SN: .......................................</small>' : ''}</td>
         <td style="text-align:center">${p.qty} ${p.unit}</td>
         <td style="text-align:center">....... ${p.unit}</td>
-        <td style="text-align:center">....... ${p.unit}</td>
       </tr>
     `;
   });
 
   const slipContent = `
     <div class="slip-container" id="printable-area">
+      <!-- THÔNG TIN DOANH NGHIỆP TRÊN ĐẦU PHIẾU (THEO MẪU CÔNG TY ANT LUCENT) -->
+      <div class="slip-company-header">
+        <div class="slip-company-logo">
+          <img src="${ANT_LUCENT_LOGO_B64}" alt="Logo Ant Lucent">
+        </div>
+        <div class="slip-company-info">
+          <div class="slip-company-name">Công Ty Cổ Phần Công Nghệ Ant Lucent</div>
+          <div class="slip-company-line">Địa chỉ : 152 Thụy Khuê , Q.Tây Hồ, Hà Nội</div>
+          <div class="slip-company-line slip-company-flex">
+            <span>Điện thoại :</span>
+            <span>Fax : 848-4-9347503</span>
+          </div>
+          <div class="slip-company-line">Email : infor@jsc.com.vn</div>
+          <div class="slip-company-line">Website : www.jsc.com.vn</div>
+        </div>
+      </div>
+
       <div class="slip-header">
-        <h2>PHIẾU SOẠN HÀNG THI CÔNG KHO VẬT TƯ</h2>
+        <h2>PHIẾU XUẤT VẬT TƯ LẮP ĐẶT</h2>
         <p style="font-size:0.85rem; color:#64748B">Hệ thống Camera Giám Sát & Controller Báo Động</p>
       </div>
+
       <div class="slip-meta-grid">
         <div><strong>Công trình / Khách hàng:</strong> ${projectName}</div>
         <div><strong>Ngày xuất kho:</strong> ${today}</div>
         <div><strong>Kỹ thuật viên phụ trách:</strong> ${techName}</div>
-        <div><strong>Thủ kho soạn hàng:</strong> Quản lý kho</div>
+        <div><strong>Thủ kho xuất hàng:</strong> Quản lý kho</div>
       </div>
+
       <table class="slip-table">
         <thead>
           <tr>
-            <th style="width:35px; text-align:center">STT</th>
+            <th style="width:40px; text-align:center">STT</th>
             <th>Tên vật tư / Thiết bị</th>
-            <th style="width:90px; text-align:center">Yêu cầu</th>
-            <th style="width:90px; text-align:center">Thực xuất</th>
-            <th style="width:90px; text-align:center">Thu hồi dư</th>
+            <th style="width:110px; text-align:center">Yêu cầu</th>
+            <th style="width:120px; text-align:center">Thực xuất</th>
           </tr>
         </thead>
         <tbody>
           ${rowsHtml}
         </tbody>
       </table>
+
       <div class="slip-signatures">
         <div>
           KỸ THUẬT VIÊN NHẬN ĐỒ<br><small>(Ký & ghi rõ họ tên)</small>
@@ -2621,11 +2642,11 @@ function initModals() {
   document.getElementById('btn-copy-slip').onclick = () => {
     const projectName = document.getElementById('pick-project-name').value.trim() || 'Công trình';
     const techName = document.getElementById('pick-tech-name').value.trim() || 'KTV';
-    let text = `📦 PHIẾU XUẤT KHO - ${projectName}\n👤 KTV: ${techName}\n📅 Ngày: ${new Date().toLocaleDateString('vi-VN')}\n------------------------\n`;
+    let text = `📦 PHIẾU XUẤT VẬT TƯ LẮP ĐẶT - ${projectName}\nCông Ty Cổ Phần Công Nghệ Ant Lucent\n👤 KTV: ${techName}\n📅 Ngày: ${new Date().toLocaleDateString('vi-VN')}\n------------------------\n`;
     store.pickingCart.forEach((p, idx) => {
-      text += `${idx + 1}. ${p.name}: ${p.qty} ${p.unit} ${p.hasSerial ? '(CẦN CHECK SN)' : ''}\n`;
+      text += `${idx + 1}. ${p.name}: Yêu cầu ${p.qty} ${p.unit} ${p.hasSerial ? '(CẦN CHECK SN)' : ''}\n`;
     });
-    text += `------------------------\n* Vui lòng kiểm đủ đồ và hoàn trả dây thừa/công cụ sau khi xong!`;
+    text += `------------------------\n* KTV vui lòng kiểm đủ thiết bị và ký xác nhận!`;
 
     navigator.clipboard
       .writeText(text)

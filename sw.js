@@ -1,11 +1,12 @@
-const CACHE_NAME = 'kho-anninh-v3';
+const CACHE_NAME = 'kho-anninh-v4';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
-  './icon.svg'
+  './icon.svg',
+  './ant_lucent_icon.png'
 ];
 
 // Cài đặt và ép Service Worker mới kích hoạt ngay
