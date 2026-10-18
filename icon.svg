@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#020617"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#06B6D4"/>
+      <stop offset="100%" stop-color="#10B981"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#06B6D4" flood-opacity="0.4"/>
+    </filter>
+  </defs>
+  
+  <!-- Background with rounded squircles -->
+  <rect width="512" height="512" rx="115" fill="url(#bgGrad)"/>
+  <rect x="16" y="16" width="480" height="480" rx="100" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="2"/>
+  
+  <!-- Outer Shield Badge -->
+  <path d="M256 90 L380 145 C380 260, 320 350, 256 410 C192 350, 132 260, 132 145 Z" 
+        fill="none" stroke="url(#accentGrad)" stroke-width="14" stroke-linejoin="round" filter="url(#glow)"/>
+
+  <!-- Warehouse Box Center -->
+  <path d="M256 185 L325 225 L325 305 L256 345 L187 305 L187 225 Z" fill="#1E293B" stroke="#38BDF8" stroke-width="6"/>
+  <path d="M256 185 L256 345" stroke="#38BDF8" stroke-width="5"/>
+  <path d="M256 265 L325 225" stroke="#38BDF8" stroke-width="4"/>
+  <path d="M256 265 L187 225" stroke="#38BDF8" stroke-width="4"/>
+
+  <!-- Camera Lens Eye / Sensor Indicator -->
+  <circle cx="256" cy="265" r="28" fill="#0F172A" stroke="#10B981" stroke-width="6"/>
+  <circle cx="256" cy="265" r="14" fill="#38BDF8"/>
+  <circle cx="251" cy="260" r="4" fill="#FFFFFF"/>
+
+  <!-- Signal Waves (Alarm / Sensor Waves) -->
+  <path d="M355 175 A 140 140 0 0 1 375 225" fill="none" stroke="#F59E0B" stroke-width="6" stroke-linecap="round"/>
+  <path d="M157 175 A 140 140 0 0 0 137 225" fill="none" stroke="#F59E0B" stroke-width="6" stroke-linecap="round"/>
+</svg>

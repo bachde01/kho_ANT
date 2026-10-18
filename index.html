@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Kho An Ninh - Quản Lý Vật Tư & Thiết Bị</title>
+  
+  <!-- PWA & iOS Meta Tags -->
+  <meta name="description" content="Ứng dụng quản lý kho vật tư camera, box controller báo động, cảm biến và picking list thi công">
+  <meta name="theme-color" content="#0B0F19">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Kho An Ninh">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/svg+xml" href="icon.svg">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Header Bar -->
+  <header class="app-header">
+    <div class="header-content">
+      <div class="brand">
+        <div class="brand-icon">
+          <img src="icon.svg" alt="Logo" width="34" height="34">
+        </div>
+        <div>
+          <h1 class="brand-title">KHO AN NINH</h1>
+          <p class="brand-subtitle">Camera • Box Controller • Cảm biến</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <!-- Admin Indicator Pill (Chỉ hiện khi quản lý kho mở khóa) -->
+        <div class="user-pill admin-only" id="admin-badge" title="Đang ở chế độ Quản trị">
+          <span class="user-role-dot"></span>
+          <span>👑 Quản lý kho</span>
+          <button id="btn-lock-mode" class="btn-lock-icon" title="Khóa lại chế độ chỉ xem">🔒</button>
+        </div>
+        <button id="btn-export-backup" class="icon-btn admin-only" title="Sao lưu dữ liệu" aria-label="Sao lưu dữ liệu">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+        </button>
+        <button id="btn-import-backup" class="icon-btn admin-only" title="Phục hồi dữ liệu" aria-label="Phục hồi dữ liệu">
+          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+        </button>
+        <input type="file" id="file-import" accept=".json" style="display:none">
+      </div>
+    </div>
+
+    <!-- Quick Stats Metric Cards -->
+    <div class="stats-scroller">
+      <div class="stat-card">
+        <span class="stat-label">Tổng vật tư</span>
+        <span id="stat-total-items" class="stat-value">29</span>
+      </div>
+      <div class="stat-card warning">
+        <span class="stat-label">Sắp hết hàng</span>
+        <span id="stat-low-stock" class="stat-value">0</span>
+      </div>
+      <div class="stat-card cyan">
+        <span class="stat-label">Camera trong kho</span>
+        <span id="stat-cam-stock" class="stat-value">0</span>
+      </div>
+      <div class="stat-card purple">
+        <span class="stat-label">Box trong kho</span>
+        <span id="stat-box-stock" class="stat-value">0</span>
+      </div>
+      <div class="stat-card emerald">
+        <span class="stat-label">Dụng cụ đang mượn</span>
+        <span id="stat-tools-loaned" class="stat-value">0</span>
+      </div>
+    </div>
+
+    <!-- Sync & Month Selection Bar -->
+    <div class="sync-bar">
+      <div class="sync-bar-left">
+        <span class="cloud-pill" id="cloud-status-pill">
+          <span class="cloud-dot" id="cloud-status-dot"></span>
+          <span id="cloud-status-text">Bộ nhớ máy</span>
+        </span>
+        <div class="month-selector-wrapper">
+          <label for="select-month" class="month-label">📅 Kỳ:</label>
+          <select id="select-month" class="select-month-sm">
+            <option value="2026-10">Tháng 10/2026</option>
+            <option value="2026-09">Tháng 09/2026</option>
+            <option value="2026-08">Tháng 08/2026</option>
+          </select>
+        </div>
+      </div>
+      <div class="sync-bar-actions">
+        <button id="btn-sync-reload" class="btn-sm btn-secondary" title="Làm mới dữ liệu từ GG Sheet (F5)">🔄 Làm Mới (F5)</button>
+        <button id="btn-sync-push" class="btn-sm btn-primary admin-only" title="Đẩy tồn kho & lịch sử tháng này lên GG Sheet">📤 Lưu Lên Sheet</button>
+        <button id="btn-sync-config" class="btn-sm" title="Cài đặt kết nối Google Sheet">⚙️ Kết Nối Sheet</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main View Container -->
+  <main class="app-main">
+
+    <!-- TAB 1: TỒN KHO VẬT TƯ -->
+    <section id="tab-inventory" class="tab-pane active">
+      <div class="section-toolbar">
+        <div class="search-box">
+          <svg class="search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input type="search" id="inventory-search" placeholder="Tìm camera, jack, cảm biến, dây..." autocomplete="off">
+        </div>
+        <div class="action-buttons-row admin-only">
+          <button id="btn-quick-inward" class="btn btn-primary">
+            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+            Nhập hàng
+          </button>
+          <button id="btn-add-new-item" class="btn btn-secondary">
+            + Vật tư mới
+          </button>
+        </div>
+      </div>
+
+      <!-- Category Filter Pills -->
+      <div class="category-filters" id="category-filters">
+        <button class="filter-pill active" data-cat="all">Tất cả (<span id="count-all">29</span>)</button>
+        <button class="filter-pill" data-cat="Thiết bị chính">Thiết bị SN</button>
+        <button class="filter-pill" data-cat="Cảm biến">Cảm biến</button>
+        <button class="filter-pill" data-cat="Dây cáp">Dây cáp</button>
+        <button class="filter-pill" data-cat="Phụ kiện">Phụ kiện & Jack</button>
+        <button class="filter-pill" data-cat="Tiêu hao">Tiêu hao</button>
+      </div>
+
+      <!-- Inventory Items List -->
+      <div class="item-grid" id="inventory-grid">
+        <!-- Rendered dynamically by JavaScript -->
+      </div>
+    </section>
+
+    <!-- TAB 2: QUẢN LÝ SERIAL NUMBER (CAMERA & BOX) -->
+    <section id="tab-serials" class="tab-pane">
+      <div class="section-toolbar">
+        <div class="search-box">
+          <svg class="search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input type="search" id="serial-search" placeholder="Tìm theo mã SN, tên KTV, công trình..." autocomplete="off">
+        </div>
+        <button id="btn-add-serial" class="btn btn-primary admin-only">
+          <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+          Thêm Serial
+        </button>
+      </div>
+
+      <!-- Status Filter -->
+      <div class="category-filters" id="serial-status-filters">
+        <button class="filter-pill active" data-status="all">Tất cả</button>
+        <button class="filter-pill" data-status="Trong kho">Trong kho</button>
+        <button class="filter-pill" data-status="Đang thi công">Đang thi công</button>
+        <button class="filter-pill" data-status="Đã lắp đặt">Đã lắp đặt</button>
+        <button class="filter-pill" data-status="Hỏng/Bảo hành">Hỏng / BH</button>
+      </div>
+
+      <div class="serial-list" id="serial-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+    <!-- TAB 3: TẠO PHIẾU XUẤT KHO / KIT SOẠN ĐỒ -->
+    <section id="tab-picking" class="tab-pane">
+      <div class="card p-4 mb-4">
+        <h2 class="card-title">Tạo Đơn Soạn Hàng (Picking List)</h2>
+        <p class="text-muted text-sm mb-3">Tạo danh sách đồ trực quan cho Kỹ thuật viên nhặt đồ đi công trình</p>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="pick-project-name">Tên công trình / Khách hàng</label>
+            <input type="text" id="pick-project-name" placeholder="VD: Nhà kho Tân Bình / Trạm xăng số 5" class="input-field">
+          </div>
+          <div class="form-group">
+            <label for="pick-tech-name">Kỹ thuật viên phụ trách</label>
+            <input type="text" id="pick-tech-name" placeholder="VD: Nguyễn Văn A" class="input-field">
+          </div>
+        </div>
+
+        <div class="kit-shortcuts">
+          <div class="d-flex justify-between align-center mb-3">
+            <div>
+              <span class="kit-title" style="margin-bottom:2px">Bộ Kit Tiêu Chuẩn & Theo Dự Án</span>
+              <p class="text-muted text-sm" style="font-size:0.75rem">Bán lẻ Box, bán cảm biến không box hoặc Kit riêng theo công trình</p>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn-sm btn-primary" id="btn-open-create-kit">+ Tạo Kit Dự Án</button>
+              <button type="button" class="btn-sm btn-secondary" id="btn-save-cart-as-kit" title="Lưu danh sách đang chọn thành Kit">💾 Lưu giỏ thành Kit</button>
+            </div>
+          </div>
+          <div class="kit-buttons" id="kit-buttons-container">
+            <!-- Dynamic Kit buttons rendered by JavaScript -->
+          </div>
+        </div>
+      </div>
+
+      <!-- Current Picking List Items -->
+      <div class="card p-4">
+        <div class="d-flex justify-between align-center mb-3">
+          <h3 class="card-title">Vật tư đã chọn xuất (<span id="pick-item-count">0</span> món)</h3>
+          <button id="btn-clear-picking" class="btn-sm text-danger">Xóa tất cả</button>
+        </div>
+
+        <div id="picking-cart-container" class="picking-cart-empty">
+          Chưa chọn vật tư nào. Hãy bấm các nút Kit ở trên hoặc chọn thêm vật tư bên dưới!
+        </div>
+
+        <div class="mt-4 pt-3 border-top">
+          <label class="form-label">Thêm vật tư lẻ hoặc đo mét dây:</label>
+          <div class="d-flex gap-2 mb-3">
+            <select id="pick-add-select" class="input-field">
+              <!-- Options filled by JS -->
+            </select>
+            <input type="number" id="pick-add-qty" class="input-field w-80" placeholder="SL/mét" value="1" min="1">
+            <button type="button" id="btn-pick-add-item" class="btn btn-secondary">Thêm</button>
+          </div>
+
+          <div class="action-buttons-row mt-4">
+            <button id="btn-generate-slip" class="btn btn-primary w-full">
+              <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+              Xuất Phiếu Soạn Hàng (Picking Slip)
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: NHẬP KHO & HOÀN TRẢ CÔNG TRÌNH -->
+    <section id="tab-in-out" class="tab-pane">
+      <div class="toggle-switch-container mb-4">
+        <button class="toggle-btn active" id="toggle-inward">📥 Nhập thêm hàng</button>
+        <button class="toggle-btn" id="toggle-return">🔄 Hoàn trả công trình (Vật tư thừa / Hỏng)</button>
+      </div>
+
+      <!-- VIEW: NHẬP KHO THÊM -->
+      <div id="view-inward" class="in-out-view active">
+        <div class="card p-4">
+          <h2 class="card-title">Nhập Thêm Vật Tư Vào Kho</h2>
+          <p class="text-muted text-sm mb-4">Cộng thêm số lượng tồn kho hoặc nhập lô thiết bị Serial mới</p>
+
+          <form id="form-inward">
+            <div class="form-group mb-3">
+              <label for="inward-item-select">Chọn vật tư nhập về</label>
+              <select id="inward-item-select" class="input-field" required>
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+
+            <!-- Normal item quantity -->
+            <div id="inward-normal-section" class="form-group mb-3">
+              <label for="inward-quantity">Số lượng nhập thêm (<span id="inward-unit-display">Cái</span>)</label>
+              <input type="number" id="inward-quantity" class="input-field" min="1" placeholder="Nhập số lượng" required>
+            </div>
+
+            <!-- Serialized items entry (Cameras / Box) -->
+            <div id="inward-serial-section" class="form-group mb-3 hidden">
+              <label for="inward-serials-input">Danh sách Serial Number (Mỗi mã 1 dòng hoặc cách nhau dấu phẩy)</label>
+              <textarea id="inward-serials-input" class="input-field" rows="4" placeholder="VD:
+CAM-2026-001
+CAM-2026-002
+CAM-2026-003"></textarea>
+              <small class="text-muted">Hệ thống sẽ tự động đếm số lượng và tạo từng bản ghi thiết bị trong kho.</small>
+            </div>
+
+            <div class="form-group mb-4">
+              <label for="inward-notes">Ghi chú nhập kho / Nhà cung cấp</label>
+              <input type="text" id="inward-notes" class="input-field" placeholder="VD: Lô hàng nhập từ NSX đợt 2">
+            </div>
+
+            <button type="submit" class="btn btn-primary w-full">
+              Xác Nhận Nhập Kho
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <!-- VIEW: HOÀN TRẢ CÔNG TRÌNH -->
+      <div id="view-return" class="in-out-view">
+        <div class="card p-4">
+          <h2 class="card-title">Tiếp Nhận Hoàn Trả Sau Thi Công</h2>
+          <p class="text-muted text-sm mb-4">Thu hồi vật tư dùng thừa và phân loại hàng hỏng/lỗi cách ly bảo hành</p>
+
+          <form id="form-return">
+            <div class="form-group mb-3">
+              <label for="return-project-name">Công trình hoàn trả / Kỹ thuật viên</label>
+              <input type="text" id="return-project-name" class="input-field" placeholder="VD: Nhà xưởng Tân Bình - KTV Nguyễn Văn A" required>
+            </div>
+
+            <div class="form-group mb-3">
+              <label for="return-item-select">Chọn vật tư hoàn trả</label>
+              <select id="return-item-select" class="input-field" required>
+                <!-- Dynamic -->
+              </select>
+            </div>
+
+            <div class="form-group mb-3">
+              <label>Tình trạng vật tư:</label>
+              <div class="radio-cards">
+                <label class="radio-card">
+                  <input type="radio" name="return_condition" value="good" checked>
+                  <div class="radio-card-body">
+                    <strong class="text-success">✅ Còn tốt / Thừa</strong>
+                    <small>Sẽ cộng trả lại vào Tồn kho khả dụng</small>
+                  </div>
+                </label>
+                <label class="radio-card">
+                  <input type="radio" name="return_condition" value="defective">
+                  <div class="radio-card-body">
+                    <strong class="text-danger">⚠️ Bị hỏng / Lỗi kỹ thuật</strong>
+                    <small>Đưa vào kho cách ly Bảo hành (RMA), KHÔNG cộng kho bán</small>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div class="form-group mb-3" id="return-qty-group">
+              <label for="return-quantity">Số lượng / Số mét hoàn trả</label>
+              <input type="number" id="return-quantity" class="input-field" min="1" value="1" required>
+            </div>
+
+            <!-- Serial selection if serialized item -->
+            <div class="form-group mb-3 hidden" id="return-serial-group">
+              <label for="return-serial-select">Chọn mã Serial thiết bị</label>
+              <select id="return-serial-select" class="input-field">
+                <!-- Dynamic from loaned/deployed serials -->
+              </select>
+            </div>
+
+            <div class="form-group mb-4">
+              <label for="return-reason">Lý do hoàn trả / Mô tả lỗi (nếu có)</label>
+              <input type="text" id="return-reason" class="input-field" placeholder="VD: Thừa 15m dây loa / Cảm biến rung số bị lỗi nguồn">
+            </div>
+
+            <button type="submit" class="btn btn-primary w-full">
+              Lưu Biên Bản Hoàn Trả
+            </button>
+          </form>
+        </div>
+
+        <!-- History of Returns -->
+        <div class="card p-4 mt-4">
+          <h3 class="card-title mb-3">Lịch sử hoàn trả gần đây</h3>
+          <div id="return-history-list" class="text-sm">
+            <!-- Dynamic -->
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: SỔ MƯỢN CÔNG CỤ DỤNG CỤ -->
+    <section id="tab-tools" class="tab-pane">
+      <div class="d-flex justify-between align-center mb-3">
+        <div>
+          <h2 class="card-title">Sổ Mượn - Trả Công Cụ</h2>
+          <p class="text-muted text-sm">Theo dõi kìm mạng, tua vít, súng keo, dao rọc giấy</p>
+        </div>
+        <button id="btn-quick-loan-tool" class="btn btn-primary admin-only">
+          + Cho Mượn Đồ
+        </button>
+      </div>
+
+      <div class="tools-grid" id="tools-grid">
+        <!-- Dynamic -->
+      </div>
+    </section>
+
+    <!-- TAB 6: LỊCH SỬ XUẤT KHO & LẤY ĐỒ -->
+    <section id="tab-history" class="tab-pane">
+      <div class="d-flex justify-between align-center mb-3">
+        <div>
+          <h2 class="card-title">Nhật Ký Xuất Kho & Lấy Đồ</h2>
+          <p class="text-muted text-sm">Theo dõi chi tiết các đợt kỹ thuật viên lấy vật tư đi công trình</p>
+        </div>
+        <div class="stat-badge-sm">
+          Tổng số lần xuất: <strong id="history-total-count" style="color:var(--primary)">0</strong>
+        </div>
+      </div>
+
+      <div class="section-toolbar">
+        <div class="search-box">
+          <svg class="search-icon" width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+          <input type="search" id="history-search" placeholder="Tìm theo tên công trình, kỹ thuật viên..." autocomplete="off">
+        </div>
+      </div>
+
+      <div class="dispatch-history-list" id="dispatch-history-list">
+        <!-- Rendered dynamically -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Bottom Navigation Bar (iOS App Style) -->
+  <nav class="bottom-nav">
+    <button class="nav-item active" data-tab="tab-inventory">
+      <span class="nav-icon">📦</span>
+      <span class="nav-text">Tồn Kho</span>
+      <span id="badge-low-stock-nav" class="nav-badge hidden">0</span>
+    </button>
+    <button class="nav-item" data-tab="tab-serials">
+      <span class="nav-icon">🏷️</span>
+      <span class="nav-text">Serial SN</span>
+    </button>
+    <button class="nav-item" data-tab="tab-history">
+      <span class="nav-icon">📜</span>
+      <span class="nav-text">Lịch Sử</span>
+    </button>
+    <button class="nav-item admin-only" data-tab="tab-picking">
+      <span class="nav-icon">📋</span>
+      <span class="nav-text">Soạn Đồ</span>
+      <span id="badge-picking-nav" class="nav-badge hidden">0</span>
+    </button>
+    <button class="nav-item admin-only" data-tab="tab-in-out">
+      <span class="nav-icon">🔄</span>
+      <span class="nav-text">Nhập/Hoàn</span>
+    </button>
+    <button class="nav-item" data-tab="tab-tools">
+      <span class="nav-icon">🛠️</span>
+      <span class="nav-text">Dụng Cụ</span>
+    </button>
+  </nav>
+
+  <!-- MODAL: THÊM MÃ VẬT TƯ MỚI -->
+  <div id="modal-new-item" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Thêm Vật Tư Mới Vào Kho</h3>
+        <button class="modal-close" data-close="modal-new-item">&times;</button>
+      </div>
+      <form id="form-new-item">
+        <div class="modal-body">
+          <div class="form-group mb-3">
+            <label for="new-item-name">Tên vật tư</label>
+            <input type="text" id="new-item-name" class="input-field" placeholder="VD: Cảm biến vỡ kính báo động" required>
+          </div>
+          <div class="form-grid mb-3">
+            <div class="form-group">
+              <label for="new-item-category">Nhóm vật tư</label>
+              <select id="new-item-category" class="input-field" required>
+                <option value="Thiết bị chính">Thiết bị chính</option>
+                <option value="Cảm biến">Cảm biến</option>
+                <option value="Dây cáp">Dây cáp</option>
+                <option value="Phụ kiện">Phụ kiện nguồn/Jack</option>
+                <option value="Tiêu hao">Vật tư tiêu hao</option>
+                <option value="Dụng cụ">Công cụ dụng cụ</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="new-item-unit">Đơn vị tính</label>
+              <select id="new-item-unit" class="input-field" required>
+                <option value="Cái">Cái</option>
+                <option value="Bộ">Bộ</option>
+                <option value="Mét">Mét</option>
+                <option value="Cuộn">Cuộn</option>
+                <option value="Lọ">Lọ</option>
+                <option value="Hạt">Hạt</option>
+                <option value="Túi">Túi</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid mb-3">
+            <div class="form-group">
+              <label for="new-item-initial-qty">Số lượng tồn ban đầu</label>
+              <input type="number" id="new-item-initial-qty" class="input-field" min="0" value="0">
+            </div>
+            <div class="form-group">
+              <label for="new-item-min-stock">Mức báo sắp hết (Min)</label>
+              <input type="number" id="new-item-min-stock" class="input-field" min="0" value="5">
+            </div>
+          </div>
+          <div class="form-group mb-3">
+            <label for="new-item-location">Vị trí lưu kho</label>
+            <input type="text" id="new-item-location" class="input-field" placeholder="VD: Kệ B2 - Ngăn 3">
+          </div>
+          <div class="form-group mb-3">
+            <label for="new-item-note">Quy cách / Ghi chú kỹ thuật</label>
+            <input type="text" id="new-item-note" class="input-field" placeholder="VD: Đấu nối vào Zone 1 hoặc 2">
+          </div>
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" id="new-item-has-serial"> Có mã Serial Number quản lý đích danh
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close="modal-new-item">Hủy</button>
+          <button type="submit" class="btn btn-primary">Lưu Vào Kho</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: XUẤT PHIẾU SOẠN HÀNG (PICKING SLIP VIEW / PRINT) -->
+  <div id="modal-picking-slip" class="modal-backdrop">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">Phiếu Soạn Hàng Thi Công</h3>
+        <button class="modal-close" data-close="modal-picking-slip">&times;</button>
+      </div>
+      <div class="modal-body" id="picking-slip-print-content">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="btn-copy-slip">📋 Sao Chép Gửi Zalo</button>
+        <button type="button" class="btn btn-secondary" id="btn-print-slip">🖨️ In Phiếu / PDF</button>
+        <button type="button" class="btn btn-primary admin-only" id="btn-confirm-dispatch">✅ Xác Nhận Đã Xuất Kho</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CHO MƯỢN DỤNG CỤ -->
+  <div id="modal-loan-tool" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Ghi Sổ Mượn Công Cụ</h3>
+        <button class="modal-close" data-close="modal-loan-tool">&times;</button>
+      </div>
+      <form id="form-loan-tool">
+        <div class="modal-body">
+          <div class="form-group mb-3">
+            <label for="loan-tool-select">Chọn dụng cụ mượn</label>
+            <select id="loan-tool-select" class="input-field" required>
+              <!-- Filled by JS -->
+            </select>
+          </div>
+          <div class="form-group mb-3">
+            <label for="loan-tech-name">Kỹ thuật viên mượn</label>
+            <input type="text" id="loan-tech-name" class="input-field" placeholder="VD: Nguyễn Văn A" required>
+          </div>
+          <div class="form-group mb-3">
+            <label for="loan-project">Công trình mang đi</label>
+            <input type="text" id="loan-project" class="input-field" placeholder="VD: Nhà xưởng Tân Bình">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close="modal-loan-tool">Hủy</button>
+          <button type="submit" class="btn btn-primary">Xác Nhận Xuất Mượn</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: TẠO BỘ KIT TÙY CHỈNH THEO DỰ ÁN -->
+  <div id="modal-create-kit" class="modal-backdrop">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">Tạo Bộ Kit Mới Theo Dự Án / Yêu Cầu</h3>
+        <button class="modal-close" data-close="modal-create-kit">&times;</button>
+      </div>
+      <form id="form-create-kit">
+        <div class="modal-body">
+          <div class="form-grid mb-3">
+            <div class="form-group">
+              <label for="kit-name-input">Tên Bộ Kit / Tên Dự Án</label>
+              <input type="text" id="kit-name-input" class="input-field" placeholder="VD: Kit Cảm Biến Không Box (Nhà Xưởng A)" required>
+            </div>
+            <div class="form-group">
+              <label for="kit-icon-select">Biểu tượng Kit</label>
+              <select id="kit-icon-select" class="input-field">
+                <option value="📦">📦 Hộp phụ kiện / Thiết bị</option>
+                <option value="🚪">🚪 Cảm biến cửa / Không Box</option>
+                <option value="⚡">⚡ Trạm Box Controller</option>
+                <option value="📹">📹 Camera giám sát</option>
+                <option value="🔔">🔔 Còi hú / Loa báo động</option>
+                <option value="🏭">🏭 Nhà xưởng / Khu công nghiệp</option>
+                <option value="🏢">🏢 Tòa nhà / Văn phòng</option>
+                <option value="🛡️">🛡️ Dự án an ninh đặc thù</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group mb-3">
+            <label for="kit-desc-input">Mô tả tóm tắt</label>
+            <input type="text" id="kit-desc-input" class="input-field" placeholder="VD: Dành cho khách chỉ mua thêm cảm biến, không lấy Box">
+          </div>
+
+          <div class="border-top pt-3 mb-2">
+            <div class="d-flex justify-between align-center mb-2">
+              <strong style="font-size:0.88rem; color:var(--text-main)">Danh sách vật tư trong Bộ Kit này:</strong>
+              <button type="button" class="btn-sm btn-secondary" id="btn-add-kit-item-row">+ Thêm món vào Kit</button>
+            </div>
+            <div id="kit-items-builder-container">
+              <!-- Item rows dynamically added -->
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close="modal-create-kit">Hủy</button>
+          <button type="submit" class="btn btn-primary">Lưu Bộ Kit Này</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: NHẬP MÃ BÍ MẬT QUẢN TRỊ KHO (KÍCH HOẠT KHI CLICK 5 LẦN VÀO LOGO) -->
+  <div id="modal-secret-admin" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width:380px">
+      <div class="modal-header">
+        <h3 class="modal-title">Xác Thực Quản Lý Kho</h3>
+        <button class="modal-close" data-close="modal-secret-admin">&times;</button>
+      </div>
+      <form id="form-secret-admin">
+        <div class="modal-body">
+          <p class="text-sm text-muted mb-3">Chế độ này chỉ dành cho bạn (Quản lý kho) để thêm, sửa vật tư và xuất nhập kho.</p>
+          <div class="form-group mb-3">
+            <label for="secret-pin-input">Mật mã quản trị</label>
+            <input type="password" id="secret-pin-input" class="input-field" placeholder="Mặc định: thukho hoặc 123" required autocomplete="off">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close="modal-secret-admin">Hủy</button>
+          <button type="submit" class="btn btn-primary">Mở Khóa Toàn Quyền</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: KẾT NỐI GOOGLE SHEETS -->
+  <div id="modal-sheet-config" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Cài Đặt Kết Nối Google Sheets</h3>
+        <button class="modal-close" data-close="modal-sheet-config">&times;</button>
+      </div>
+      <form id="form-sheet-config">
+        <div class="modal-body">
+          <div class="guide-box mb-3">
+            <h4 style="font-size:0.88rem; color:#38BDF8; margin-bottom:6px">📌 Hướng dẫn liên kết Google Sheet (1 phút):</h4>
+            <ol style="font-size:0.78rem; color:var(--text-secondary); padding-left:18px; line-height:1.5">
+              <li>Mở tệp Google Sheets mới trên Google Drive của bạn.</li>
+              <li>Chọn <strong>Tiện ích mở rộng (Extensions) -> Apps Script</strong>.</li>
+              <li>Dán mã từ tệp <code>Google_Apps_Script_Kho_Vat_Tu.js</code> đã tạo sẵn trong thư mục.</li>
+              <li>Bấm <strong>Triển khai (Deploy) -> Tùy chọn triển khai mới (New deployment)</strong> -> Chọn <strong>Ứng dụng web (Web app)</strong> -> Quyền truy cập: <strong>Bất kỳ ai (Anyone)</strong>.</li>
+              <li>Sao chép link Web App URL dán vào ô bên dưới:</li>
+            </ol>
+          </div>
+          <div class="form-group mb-3">
+            <label for="input-sheet-url">Google Apps Script Web App URL</label>
+            <input type="url" id="input-sheet-url" class="input-field" placeholder="https://script.google.com/macros/s/.../exec">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close="modal-sheet-config">Đóng</button>
+          <button type="submit" class="btn btn-primary">Lưu & Kết Nối</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
