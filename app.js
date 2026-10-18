@@ -4,6 +4,12 @@
    Multi-User Role: Quản Lý Kho (Admin) vs Ban Giám Đốc (Viewer)
    ======================================================== */
 
+// 🌐 CẤU HÌNH LINK GOOGLE SHEET MẶC ĐỊNH CHO TẤT CẢ MỌI NGƯỜI TRUY CẬP
+// Dán link Web App Google Apps Script của bạn vào giữa 2 dấu nháy bên dưới:
+// (Ví dụ: 'https://script.google.com/macros/s/AKfycb.../exec')
+// Khi đẩy lên GitHub, bất kỳ ai mở web cũng sẽ tự động đọc dữ liệu từ đây mà không cần gửi link riêng!
+const DEFAULT_SHEET_API_URL = '';
+
 // 1. DEFAULT MASTER DATA (PRELOADED 29 ITEMS)
 const DEFAULT_INVENTORY = [
   { id: 'VT-CAM-01', name: 'Camera an ninh (Có SN)', category: 'Thiết bị chính', unit: 'Cái', qty: 6, min: 5, location: 'Kệ A1 - Tầng 2', note: 'Có Serial Number - Bắt buộc ghi nhận SN', hasSerial: true },
@@ -169,6 +175,99 @@ const DEFAULT_DISPATCH_HISTORY = [
   }
 ];
 
+const DEFAULT_DEFECTIVE = [
+  {
+    id: 'DEF-2610-01',
+    month: '2026-10',
+    date: '2026-10-16 16:30',
+    itemId: 'VT-BOX-01',
+    itemName: 'Box Controller báo động (Có SN)',
+    hasSerial: true,
+    serialNo: 'BOX-SN-8803',
+    qty: 1,
+    unit: 'Cái',
+    sourceProject: 'Thu hồi từ Trạm C',
+    errorDesc: 'Mất nguồn 12V, nghi chập IC nguồn',
+    type: 'repair',
+    vendorName: '',
+    rmaCode: '',
+    sentDate: '',
+    notes: 'KTV đang kiểm tra, chờ thay tụ nguồn',
+    liquidatedAt: ''
+  },
+  {
+    id: 'DEF-2610-02',
+    month: '2026-10',
+    date: '2026-10-15 09:15',
+    itemId: 'VT-CAM-01',
+    itemName: 'Camera an ninh (Có SN)',
+    hasSerial: true,
+    serialNo: 'CAM-SN-2601',
+    qty: 1,
+    unit: 'Cái',
+    sourceProject: 'Nhà kho Tân Bình',
+    errorDesc: 'Hỏng cảm biến hồng ngoại ban đêm',
+    type: 'warranty',
+    vendorName: 'Trung tâm BH Hikvision Sài Gòn',
+    rmaCode: 'RMA-HIK-2026-992',
+    sentDate: '2026-10-15',
+    notes: 'Đã gửi bưu điện sang hãng, hẹn trả hàng ngày 22/10',
+    liquidatedAt: ''
+  },
+  {
+    id: 'DEF-2610-03',
+    month: '2026-10',
+    date: '2026-10-14 11:00',
+    itemId: 'VT-CB-RUNGC',
+    itemName: 'Cảm biến rung cơ',
+    hasSerial: false,
+    serialNo: '',
+    qty: 3,
+    unit: 'Cái',
+    sourceProject: 'Công trình cũ thu hồi',
+    errorDesc: 'Rỉ sét lò xo cơ, nứt vỡ chân bắt vít không thể dùng lại',
+    type: 'scrap',
+    vendorName: '',
+    rmaCode: '',
+    sentDate: '',
+    notes: 'Đề xuất thanh lý tiêu hủy đợt cuối tháng 10',
+    liquidatedAt: ''
+  }
+];
+
+const DEFAULT_INVOICES = [
+  {
+    id: 'INV-2610-01',
+    month: '2026-10',
+    date: '2026-10-17 10:15',
+    invoiceNo: 'HD-88912',
+    supplier: 'Tổng Kho Cáp & Phụ Kiện Miền Nam',
+    itemId: 'VT-DAY-CAT5',
+    itemName: 'Dây cáp mạng Cat5',
+    qty: 300,
+    unit: 'Mét',
+    amount: 1800000,
+    wasOutOfStock: true,
+    invoicePhoto: '',
+    notes: 'Nhập bổ sung gấp do kho sắp hết cáp mạng thi công'
+  },
+  {
+    id: 'INV-2610-02',
+    month: '2026-10',
+    date: '2026-10-12 14:30',
+    invoiceNo: 'HD-77201',
+    supplier: 'Công ty Thiết Bị An Ninh Toàn Phát',
+    itemId: 'VT-TH-RJ45',
+    itemName: 'Hạt mạng RJ45',
+    qty: 200,
+    unit: 'Hạt',
+    amount: 320000,
+    wasOutOfStock: false,
+    invoicePhoto: '',
+    notes: 'Nhập định kỳ theo tháng'
+  }
+];
+
 // 2. STATE INITIALIZATION & LOCALSTORAGE MANAGEMENT
 class WarehouseStore {
   constructor() {
@@ -181,16 +280,30 @@ class WarehouseStore {
       { id: 'R1', date: '2026-10-17 17:30', project: 'Trạm xăng số 5', item: 'Dây cáp mạng Cat5', qty: 25, unit: 'Mét', condition: 'good', note: 'Thừa trả lại kho' },
       { id: 'R2', date: '2026-10-16 16:15', project: 'Thu hồi từ Trạm C', item: 'Box Controller báo động', qty: 1, unit: 'Cái', condition: 'defective', note: 'Mất nguồn, đã chuyển kho bảo hành' }
     ]);
+    this.defectiveItems = this.load('wh_defective_items', DEFAULT_DEFECTIVE);
+    this.invoices = this.load('wh_invoices', DEFAULT_INVOICES);
     this.currentUser = this.load('wh_current_user', DEFAULT_USERS[0]);
     
-    // Tự động nhận link Google Sheet nếu được chia sẻ qua URL: ?sheet=...
+    // Tự động nhận link Google Sheet:
+    // 1. Từ tham số URL: ?sheet=... (nếu chia sẻ qua link kèm param)
+    // 2. Từ DEFAULT_SHEET_API_URL cấu hình sẵn ở dòng 11 (dành cho toàn bộ người dùng web GitHub)
+    // 3. Từ localStorage (nếu người dùng tự nhập trong web qua nút bánh răng cấu hình)
     const urlParams = new URLSearchParams(window.location.search);
     const querySheet = urlParams.get('sheet');
     if (querySheet) {
       this.sheetApiUrl = querySheet;
       localStorage.setItem('wh_sheet_api_url', querySheet);
     } else {
-      this.sheetApiUrl = localStorage.getItem('wh_sheet_api_url') || '';
+      const storedUrl = localStorage.getItem('wh_sheet_api_url');
+      const lastDefault = localStorage.getItem('wh_sheet_api_url_default');
+      if (DEFAULT_SHEET_API_URL && DEFAULT_SHEET_API_URL !== lastDefault) {
+        // Admin vừa cập nhật DEFAULT_SHEET_API_URL mới trong code
+        this.sheetApiUrl = DEFAULT_SHEET_API_URL;
+        localStorage.setItem('wh_sheet_api_url', DEFAULT_SHEET_API_URL);
+        localStorage.setItem('wh_sheet_api_url_default', DEFAULT_SHEET_API_URL);
+      } else {
+        this.sheetApiUrl = storedUrl || DEFAULT_SHEET_API_URL || '';
+      }
     }
 
     this.currentMonth = this.load('wh_current_month', '2026-10');
@@ -200,7 +313,10 @@ class WarehouseStore {
 
   load(key, fallback) {
     try {
-      const data = localStorage.getItem(key);
+      let data = localStorage.getItem(key);
+      if (!data && key === 'wh_custom_kits') {
+        data = localStorage.getItem('wh_customKits');
+      }
       return data ? JSON.parse(data) : fallback;
     } catch (e) {
       console.warn('LocalStorage load error:', e);
@@ -212,9 +328,12 @@ class WarehouseStore {
     localStorage.setItem('wh_inventory', JSON.stringify(this.inventory));
     localStorage.setItem('wh_serials', JSON.stringify(this.serials));
     localStorage.setItem('wh_tools', JSON.stringify(this.tools));
+    localStorage.setItem('wh_custom_kits', JSON.stringify(this.customKits));
     localStorage.setItem('wh_customKits', JSON.stringify(this.customKits));
     localStorage.setItem('wh_dispatch_history', JSON.stringify(this.dispatchHistory));
     localStorage.setItem('wh_returns', JSON.stringify(this.returnHistory));
+    localStorage.setItem('wh_defective_items', JSON.stringify(this.defectiveItems));
+    localStorage.setItem('wh_invoices', JSON.stringify(this.invoices));
     localStorage.setItem('wh_current_user', JSON.stringify(this.currentUser));
     localStorage.setItem('wh_current_month', JSON.stringify(this.currentMonth));
     localStorage.setItem('wh_available_months', JSON.stringify(this.availableMonths));
@@ -246,10 +365,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-// PWA Service Worker
+// PWA Service Worker & Tự động phát hiện phiên bản mới từ GitHub Pages
 function initPWA() {
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('./sw.js').catch((err) => console.log('SW registration error:', err));
+    navigator.serviceWorker.register('./sw.js').then((reg) => {
+      // Khi phát hiện file mới được đẩy lên GitHub Pages
+      reg.onupdatefound = () => {
+        const installingWorker = reg.installing;
+        if (installingWorker) {
+          installingWorker.onstatechange = () => {
+            if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              showToast('✨ Đã có bản cập nhật mới từ GitHub! Đang làm mới...', 'info');
+              setTimeout(() => {
+                window.location.reload();
+              }, 1200);
+            }
+          };
+        }
+      };
+    }).catch((err) => console.log('SW registration error:', err));
   }
 }
 
@@ -282,6 +416,8 @@ function renderAll() {
   populateDropdowns();
   renderTools();
   renderReturnHistory();
+  renderInvoices();
+  renderDefectiveWarehouse();
   renderDispatchHistory();
   renderSyncStatus();
 }
@@ -300,12 +436,31 @@ function renderStats() {
   document.getElementById('stat-box-stock').textContent = boxInStock;
   document.getElementById('stat-tools-loaned').textContent = toolsLoaned;
 
+  const countLow = document.getElementById('count-low');
+  if (countLow) countLow.textContent = lowStock;
+
   const lowBadge = document.getElementById('badge-low-stock-nav');
-  if (lowStock > 0) {
-    lowBadge.textContent = lowStock;
-    lowBadge.classList.remove('hidden');
-  } else {
-    lowBadge.classList.add('hidden');
+  if (lowBadge) {
+    if (lowStock > 0) {
+      lowBadge.textContent = lowStock;
+      lowBadge.classList.remove('hidden');
+    } else {
+      lowBadge.classList.add('hidden');
+    }
+  }
+
+  // Cho phép bấm trực tiếp vào thẻ "Sắp hết hàng" để lọc ngay
+  const statLowCard = document.querySelector('.stat-card.warning');
+  if (statLowCard && !statLowCard.dataset.jumpInited) {
+    statLowCard.dataset.jumpInited = 'true';
+    statLowCard.style.cursor = 'pointer';
+    statLowCard.title = 'Bấm để xem danh sách vật tư sắp hết hàng';
+    statLowCard.onclick = () => {
+      const invNav = document.querySelector('.bottom-nav [data-tab="tab-inventory"]');
+      if (invNav) invNav.click();
+      const lowPill = document.querySelector('[data-cat="low-stock"]');
+      if (lowPill) lowPill.click();
+    };
   }
 }
 
@@ -338,7 +493,15 @@ function renderInventory() {
   container.innerHTML = '';
 
   const filtered = store.inventory.filter((item) => {
-    const matchCat = currentCatFilter === 'all' || item.category.includes(currentCatFilter);
+    let matchCat = false;
+    if (currentCatFilter === 'all') {
+      matchCat = true;
+    } else if (currentCatFilter === 'low-stock') {
+      matchCat = item.qty <= item.min;
+    } else {
+      matchCat = item.category.includes(currentCatFilter);
+    }
+
     const matchSearch =
       item.name.toLowerCase().includes(currentSearchQuery) ||
       item.id.toLowerCase().includes(currentSearchQuery) ||
@@ -381,6 +544,7 @@ function renderInventory() {
           <span class="qty-unit">${item.unit} (Tối thiểu: ${item.min})</span>
         </div>
         <div class="card-actions">
+          <button class="btn-card-edit admin-only" onclick="openEditItemModal('${item.id}')">⚙️ Sửa định mức</button>
           <button class="btn-card-action" onclick="quickAddToPick('${item.id}')">+ Lấy đồ</button>
         </div>
       </div>
@@ -388,6 +552,33 @@ function renderInventory() {
     container.appendChild(card);
   });
 }
+
+// Mở modal điều chỉnh định mức tối thiểu & thông số vật tư
+window.openEditItemModal = function (itemId) {
+  if (store.currentUser.role !== 'admin') {
+    showToast('Chỉ Quản lý kho mới có quyền điều chỉnh định mức vật tư!', 'error');
+    return;
+  }
+  const item = store.inventory.find((i) => i.id === itemId);
+  if (!item) return;
+
+  document.getElementById('edit-item-id').value = item.id;
+  document.getElementById('edit-item-name').value = item.name || '';
+  document.getElementById('edit-item-category').value = item.category || 'Thiết bị chính';
+  document.getElementById('edit-item-unit').value = item.unit || 'Cái';
+  document.getElementById('edit-item-qty').value = item.qty !== undefined ? item.qty : 0;
+  document.getElementById('edit-item-min').value = item.min !== undefined ? item.min : 5;
+  document.getElementById('edit-item-location').value = item.location || '';
+  document.getElementById('edit-item-note').value = item.note || '';
+
+  const titleEl = document.getElementById('modal-edit-item-title');
+  if (titleEl) {
+    titleEl.textContent = `Cài Đặt Định Mức: ${item.name}`;
+  }
+
+  const modal = document.getElementById('modal-edit-item');
+  if (modal) modal.classList.add('open');
+};
 
 // 6. SERIAL TRACKING MODULE
 let currentSerialFilter = 'all';
@@ -515,11 +706,14 @@ function renderKits() {
         </strong>
         <small>${kit.desc || 'Bộ kit gồm nhiều linh kiện'}</small>
       </div>
-      ${kit.isCustom ? `<button class="btn-kit-del" title="Xóa bộ kit này" onclick="deleteCustomKit(event, '${kit.id}')">&times;</button>` : ''}
+      <div class="btn-kit-actions admin-only">
+        <button class="btn-kit-btn" title="Cài đặt định lượng Kit này" onclick="openEditKitModal(event, '${kit.id}')">✏️</button>
+        ${kit.isCustom ? `<button class="btn-kit-btn del" title="Xóa bộ kit này" onclick="deleteCustomKit(event, '${kit.id}')">&times;</button>` : ''}
+      </div>
     `;
 
     card.onclick = (e) => {
-      if (e.target.closest('.btn-kit-del')) return;
+      if (e.target.closest('.btn-kit-actions')) return;
       applyKitToCart(kit);
     };
 
@@ -663,6 +857,10 @@ function initKitManagement() {
   const btnOpenCreate = document.getElementById('btn-open-create-kit');
   if (btnOpenCreate) {
     btnOpenCreate.onclick = () => {
+      document.getElementById('kit-editing-id').value = '';
+      document.getElementById('modal-kit-title').textContent = 'Tạo Bộ Kit Mới Theo Dự Án / Yêu Cầu';
+      document.getElementById('kit-name-input').value = '';
+      document.getElementById('kit-desc-input').value = '';
       const container = document.getElementById('kit-items-builder-container');
       container.innerHTML = '';
       addKitBuilderRow();
@@ -677,11 +875,12 @@ function initKitManagement() {
     btnAddRow.onclick = () => addKitBuilderRow();
   }
 
-  // Submit create kit form
+  // Submit create / edit kit form
   const formCreateKit = document.getElementById('form-create-kit');
   if (formCreateKit) {
     formCreateKit.onsubmit = (e) => {
       e.preventDefault();
+      const editingId = document.getElementById('kit-editing-id').value;
       const name = document.getElementById('kit-name-input').value.trim();
       const icon = document.getElementById('kit-icon-select').value;
       const desc = document.getElementById('kit-desc-input').value.trim();
@@ -702,6 +901,24 @@ function initKitManagement() {
         return;
       }
 
+      if (editingId) {
+        // Cập nhật định lượng Kit đã có
+        const existingKit = store.customKits.find((k) => k.id === editingId);
+        if (existingKit) {
+          existingKit.name = name;
+          existingKit.icon = icon;
+          existingKit.desc = desc || `Gồm ${items.length} món vật tư`;
+          existingKit.items = items;
+          store.save();
+          renderKits();
+          document.getElementById('modal-create-kit').classList.remove('open');
+          showToast(`Đã cập nhật định lượng Bộ Kit: "${name}"!`, 'success');
+          if (store.sheetApiUrl) pushToGoogleSheet(false);
+          return;
+        }
+      }
+
+      // Tạo Kit mới
       const newKit = {
         id: 'KIT-PRJ-' + Date.now(),
         name,
@@ -717,11 +934,38 @@ function initKitManagement() {
       document.getElementById('modal-create-kit').classList.remove('open');
       formCreateKit.reset();
       showToast(`Đã tạo thành công Bộ Kit: "${name}"!`, 'success');
+      if (store.sheetApiUrl) pushToGoogleSheet(false);
     };
   }
 }
 
-function addKitBuilderRow() {
+window.openEditKitModal = function (e, kitId) {
+  e.stopPropagation();
+  if (store.currentUser.role !== 'admin') return;
+  const kit = store.customKits.find((k) => k.id === kitId);
+  if (!kit) return;
+
+  document.getElementById('kit-editing-id').value = kit.id;
+  document.getElementById('modal-kit-title').textContent = 'Cài Đặt Định Lượng: ' + kit.name;
+  document.getElementById('kit-name-input').value = kit.name;
+  document.getElementById('kit-icon-select').value = kit.icon || '📦';
+  document.getElementById('kit-desc-input').value = kit.desc || '';
+
+  const container = document.getElementById('kit-items-builder-container');
+  container.innerHTML = '';
+
+  if (kit.items && kit.items.length > 0) {
+    kit.items.forEach((it) => {
+      addKitBuilderRow(it.id, it.qty);
+    });
+  } else {
+    addKitBuilderRow();
+  }
+
+  document.getElementById('modal-create-kit').classList.add('open');
+};
+
+function addKitBuilderRow(selectedId = '', defaultQty = 1) {
   const container = document.getElementById('kit-items-builder-container');
   if (!container) return;
 
@@ -729,14 +973,14 @@ function addKitBuilderRow() {
   row.className = 'kit-builder-row';
 
   const options = store.inventory
-    .map((item) => `<option value="${item.id}">[${item.category}] ${item.name} (${item.unit})</option>`)
+    .map((item) => `<option value="${item.id}" ${item.id === selectedId ? 'selected' : ''}>[${item.category}] ${item.name} (${item.unit})</option>`)
     .join('');
 
   row.innerHTML = `
     <select class="input-field">
       ${options}
     </select>
-    <input type="number" class="input-field" min="1" value="1" placeholder="SL">
+    <input type="number" class="input-field" min="1" value="${defaultQty}" placeholder="SL">
     <button type="button" class="btn-sm text-danger" onclick="this.parentElement.remove()">✕</button>
   `;
 
@@ -941,121 +1185,900 @@ function renderDispatchHistory() {
     .join('');
 }
 
-// 9. INWARD & RETURN WORKFLOWS
+// 9. INWARD, INVOICES, RETURN & DEFECTIVE (RMA) WORKFLOWS
+let currentInvoicePhotoBase64 = '';
+let currentDefectiveFilter = 'all';
+
 function initInwardAndReturn() {
   const btnInward = document.getElementById('toggle-inward');
   const btnReturn = document.getElementById('toggle-return');
+  const btnDefective = document.getElementById('toggle-defective');
   const viewInward = document.getElementById('view-inward');
   const viewReturn = document.getElementById('view-return');
+  const viewDefective = document.getElementById('view-defective');
 
-  btnInward.onclick = () => {
-    btnInward.classList.add('active');
-    btnReturn.classList.remove('active');
-    viewInward.classList.add('active');
-    viewReturn.classList.remove('active');
+  const switchSubTab = (activeBtn, activeView) => {
+    [btnInward, btnReturn, btnDefective].forEach((b) => b && b.classList.remove('active'));
+    [viewInward, viewReturn, viewDefective].forEach((v) => v && v.classList.remove('active'));
+    if (activeBtn) activeBtn.classList.add('active');
+    if (activeView) activeView.classList.add('active');
   };
 
-  btnReturn.onclick = () => {
-    btnReturn.classList.add('active');
-    btnInward.classList.remove('active');
-    viewReturn.classList.add('active');
-    viewInward.classList.remove('active');
-  };
+  if (btnInward) btnInward.onclick = () => switchSubTab(btnInward, viewInward);
+  if (btnReturn) btnReturn.onclick = () => switchSubTab(btnReturn, viewReturn);
+  if (btnDefective) btnDefective.onclick = () => switchSubTab(btnDefective, viewDefective);
 
+  // Inward Item Select Change
   const inwardSelect = document.getElementById('inward-item-select');
-  inwardSelect.onchange = () => {
-    const item = store.inventory.find((i) => i.id === inwardSelect.value);
-    if (!item) return;
-    document.getElementById('inward-unit-display').textContent = item.unit;
-    if (item.hasSerial) {
-      document.getElementById('inward-serial-section').classList.remove('hidden');
-      document.getElementById('inward-normal-section').classList.add('hidden');
-    } else {
-      document.getElementById('inward-serial-section').classList.add('hidden');
-      document.getElementById('inward-normal-section').classList.remove('hidden');
-    }
-  };
-
-  // Form Inward Submit
-  document.getElementById('form-inward').onsubmit = (e) => {
-    e.preventDefault();
-    if (store.currentUser.role !== 'admin') return;
-    const itemId = inwardSelect.value;
-    const item = store.inventory.find((i) => i.id === itemId);
-    if (!item) return;
-
-    if (item.hasSerial) {
-      const serialText = document.getElementById('inward-serials-input').value.trim();
-      const snList = serialText.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
-      if (snList.length === 0) {
-        showToast('Vui lòng nhập ít nhất 1 mã Serial!', 'error');
-        return;
+  if (inwardSelect) {
+    inwardSelect.onchange = () => {
+      const item = store.inventory.find((i) => i.id === inwardSelect.value);
+      if (!item) return;
+      document.getElementById('inward-unit-display').textContent = item.unit;
+      
+      // Serial section toggle
+      if (item.hasSerial) {
+        document.getElementById('inward-serial-section').classList.remove('hidden');
+        document.getElementById('inward-normal-section').classList.add('hidden');
+      } else {
+        document.getElementById('inward-serial-section').classList.add('hidden');
+        document.getElementById('inward-normal-section').classList.remove('hidden');
       }
-      snList.forEach((sn) => {
-        store.serials.unshift({
-          id: 'S_' + Date.now() + Math.random().toString(36).substr(2, 4),
-          sn: sn,
-          type: item.name,
-          status: 'Trong kho',
-          tech: '',
-          project: '',
-          updated: new Date().toISOString().slice(0, 10)
-        });
-      });
-      item.qty += snList.length;
-      showToast(`Đã nhập kho ${snList.length} thiết bị có mã Serial!`, 'success');
-      document.getElementById('inward-serials-input').value = '';
-    } else {
-      const qty = parseInt(document.getElementById('inward-quantity').value) || 0;
-      if (qty <= 0) return;
-      item.qty += qty;
-      showToast(`Đã cộng thêm ${qty} ${item.unit} vào kho!`, 'success');
-      document.getElementById('inward-quantity').value = '';
-    }
 
+      // Check Out of Stock / Low Stock Alert Banner
+      const stockAlert = document.getElementById('inward-stock-alert');
+      const badgeRestock = document.getElementById('badge-restock-status');
+      if (item.qty === 0) {
+        stockAlert.className = 'alert-banner alert-danger mb-3';
+        stockAlert.innerHTML = `🚨 <strong>Vật tư này hiện đã HẾT HÀNG (0 ${item.unit})!</strong> Bạn đang nhập bổ sung hàng để thi công. Hãy chụp và lưu hóa đơn mua hàng để đối soát.`;
+        stockAlert.classList.remove('hidden');
+        if (badgeRestock) badgeRestock.classList.remove('hidden');
+      } else if (item.qty <= item.min) {
+        stockAlert.className = 'alert-banner alert-warning mb-3';
+        stockAlert.innerHTML = `⚠️ <strong>Vật tư sắp hết hàng (${item.qty}/${item.min} ${item.unit})!</strong> Bạn đang nhập thêm bổ sung an toàn.`;
+        stockAlert.classList.remove('hidden');
+        if (badgeRestock) badgeRestock.classList.remove('hidden');
+      } else {
+        stockAlert.classList.add('hidden');
+        if (badgeRestock) badgeRestock.classList.add('hidden');
+      }
+    };
+  }
+
+  // Invoice File Upload & Canvas Compression
+  const invoiceFileInput = document.getElementById('inward-invoice-file');
+  const invoicePreviewContainer = document.getElementById('invoice-preview-container');
+  const invoicePreviewImg = document.getElementById('invoice-preview-img');
+  const btnRemoveInvoicePhoto = document.getElementById('btn-remove-invoice-photo');
+
+  if (invoiceFileInput) {
+    invoiceFileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 900;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          currentInvoicePhotoBase64 = canvas.toDataURL('image/jpeg', 0.75);
+          if (invoicePreviewImg) invoicePreviewImg.src = currentInvoicePhotoBase64;
+          if (invoicePreviewContainer) invoicePreviewContainer.classList.remove('hidden');
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+  }
+
+  if (btnRemoveInvoicePhoto) {
+    btnRemoveInvoicePhoto.onclick = () => {
+      currentInvoicePhotoBase64 = '';
+      if (invoiceFileInput) invoiceFileInput.value = '';
+      if (invoicePreviewContainer) invoicePreviewContainer.classList.add('hidden');
+    };
+  }
+
+  if (invoicePreviewImg) {
+    invoicePreviewImg.onclick = () => {
+      if (currentInvoicePhotoBase64) {
+        window.openInvoicePhotoPreview(currentInvoicePhotoBase64, 'Ảnh hóa đơn đang đính kèm');
+      }
+    };
+  }
+
+  // Form Inward Submit (Nhập kho + Lưu hóa đơn)
+  const formInward = document.getElementById('form-inward');
+  if (formInward) {
+    formInward.onsubmit = (e) => {
+      e.preventDefault();
+      if (store.currentUser.role !== 'admin') return;
+      const itemId = inwardSelect.value;
+      const item = store.inventory.find((i) => i.id === itemId);
+      if (!item) return;
+
+      const invoiceNo = document.getElementById('inward-invoice-no').value.trim();
+      const supplier = document.getElementById('inward-supplier').value.trim();
+      const amount = parseInt(document.getElementById('inward-amount').value) || 0;
+      const notes = document.getElementById('inward-notes').value.trim();
+      const wasOut = item.qty === 0 || item.qty <= item.min;
+
+      let addedQty = 0;
+
+      if (item.hasSerial) {
+        const serialText = document.getElementById('inward-serials-input').value.trim();
+        const snList = serialText.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+        if (snList.length === 0) {
+          showToast('Vui lòng nhập ít nhất 1 mã Serial!', 'error');
+          return;
+        }
+        snList.forEach((sn) => {
+          store.serials.unshift({
+            id: 'S_' + Date.now() + Math.random().toString(36).substr(2, 4),
+            sn: sn,
+            type: item.name,
+            status: 'Trong kho',
+            tech: '',
+            project: '',
+            updated: new Date().toISOString().slice(0, 10)
+          });
+        });
+        item.qty += snList.length;
+        addedQty = snList.length;
+        document.getElementById('inward-serials-input').value = '';
+      } else {
+        const qty = parseInt(document.getElementById('inward-quantity').value) || 0;
+        if (qty <= 0) return;
+        item.qty += qty;
+        addedQty = qty;
+        document.getElementById('inward-quantity').value = '';
+      }
+
+      // Tạo bản ghi hóa đơn lưu trữ
+      const newInvoice = {
+        id: 'INV-' + Date.now(),
+        month: store.currentMonth,
+        date: new Date().toLocaleString('vi-VN'),
+        invoiceNo: invoiceNo || ('HĐ-' + Date.now().toString().slice(-6)),
+        supplier: supplier || 'Nhà cung cấp vật tư',
+        itemId: item.id,
+        itemName: item.name,
+        qty: addedQty,
+        unit: item.unit,
+        amount: amount,
+        wasOutOfStock: wasOut,
+        invoicePhoto: currentInvoicePhotoBase64,
+        notes: notes
+      };
+
+      store.invoices.unshift(newInvoice);
+
+      // Reset invoice input
+      document.getElementById('inward-invoice-no').value = '';
+      document.getElementById('inward-supplier').value = '';
+      document.getElementById('inward-amount').value = '';
+      document.getElementById('inward-notes').value = '';
+      currentInvoicePhotoBase64 = '';
+      if (invoiceFileInput) invoiceFileInput.value = '';
+      if (invoicePreviewContainer) invoicePreviewContainer.classList.add('hidden');
+
+      store.save();
+      renderAll();
+      showToast(`Đã nhập ${addedQty} ${item.unit} "${item.name}" và lưu hóa đơn thành công!`, 'success');
+      if (store.sheetApiUrl) pushToGoogleSheet(false);
+    };
+  }
+
+  // Return Form Condition Radio Change
+  const returnRadios = document.querySelectorAll('input[name="return_condition"]');
+  const returnDefectiveOptions = document.getElementById('return-defective-options');
+  returnRadios.forEach((r) => {
+    r.addEventListener('change', () => {
+      if (r.value === 'defective' && r.checked) {
+        if (returnDefectiveOptions) returnDefectiveOptions.classList.remove('hidden');
+      } else if (r.value === 'good' && r.checked) {
+        if (returnDefectiveOptions) returnDefectiveOptions.classList.add('hidden');
+      }
+    });
+  });
+
+  // Form Return Submit (Hoàn trả công trình -> Tồn kho hoặc Kho Hỏng)
+  const formReturn = document.getElementById('form-return');
+  if (formReturn) {
+    formReturn.onsubmit = (e) => {
+      e.preventDefault();
+      if (store.currentUser.role !== 'admin') return;
+      const project = document.getElementById('return-project-name').value.trim();
+      const itemId = document.getElementById('return-item-select').value;
+      const condition = document.querySelector('input[name="return_condition"]:checked').value;
+      const qty = parseInt(document.getElementById('return-quantity').value) || 1;
+      const reason = document.getElementById('return-reason').value.trim();
+      const defectiveDest = document.getElementById('return-defective-dest') ? document.getElementById('return-defective-dest').value : 'repair';
+
+      const item = store.inventory.find((i) => i.id === itemId);
+      if (!item) return;
+
+      if (condition === 'good') {
+        item.qty += qty;
+        showToast(`Hoàn trả ${qty} ${item.unit} "${item.name}" vào tồn kho tốt!`, 'success');
+      } else {
+        // Tạo bản ghi trong Kho Hỏng (defectiveItems)
+        const newDefective = {
+          id: 'DEF-' + Date.now(),
+          month: store.currentMonth,
+          date: new Date().toLocaleString('vi-VN'),
+          itemId: item.id,
+          itemName: item.name,
+          hasSerial: item.hasSerial,
+          serialNo: '',
+          qty: qty,
+          unit: item.unit,
+          sourceProject: project,
+          errorDesc: reason || 'Lỗi kỹ thuật khi thi công',
+          type: defectiveDest, // 'repair' | 'warranty' | 'scrap'
+          vendorName: '',
+          rmaCode: '',
+          sentDate: '',
+          notes: '',
+          liquidatedAt: ''
+        };
+
+        store.defectiveItems.unshift(newDefective);
+
+        let destName = 'Chờ sửa chữa';
+        if (defectiveDest === 'warranty') destName = 'Gửi bảo hành hãng';
+        else if (defectiveDest === 'scrap') destName = 'Đề xuất thanh lý';
+
+        showToast(`Đã đưa ${qty} ${item.unit} lỗi vào Kho Hỏng (${destName})!`, 'error');
+      }
+
+      store.returnHistory.unshift({
+        id: 'R_' + Date.now(),
+        date: new Date().toLocaleString('vi-VN'),
+        month: store.currentMonth,
+        project: project,
+        item: item.name,
+        qty: qty,
+        unit: item.unit,
+        condition: condition,
+        note: reason || (condition === 'good' ? 'Vật tư thừa còn tốt' : 'Lỗi kỹ thuật')
+      });
+
+      store.save();
+      renderAll();
+      formReturn.reset();
+      if (returnDefectiveOptions) returnDefectiveOptions.classList.add('hidden');
+      if (store.sheetApiUrl) pushToGoogleSheet(false);
+    };
+  }
+
+  // Defective Filter Buttons
+  const defFilters = document.querySelectorAll('#defective-status-filters .filter-pill');
+  defFilters.forEach((btn) => {
+    btn.onclick = () => {
+      defFilters.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentDefectiveFilter = btn.getAttribute('data-defective-filter');
+      renderDefectiveWarehouse();
+    };
+  });
+
+  // Modal Báo Hàng Hỏng
+  const btnOpenAddDef = document.getElementById('btn-open-add-defective');
+  if (btnOpenAddDef) {
+    btnOpenAddDef.onclick = () => {
+      const select = document.getElementById('defective-item-select');
+      select.innerHTML = store.inventory
+        .map((it) => `<option value="${it.id}">[${it.category}] ${it.name} (${it.unit})</option>`)
+        .join('');
+      document.getElementById('defective-qty').value = 1;
+      document.getElementById('defective-source').value = '';
+      document.getElementById('defective-reason').value = '';
+      document.getElementById('modal-add-defective').classList.add('open');
+    };
+  }
+
+  // Type change inside Add Defective modal
+  const defTypeSelect = document.getElementById('defective-type-select');
+  if (defTypeSelect) {
+    defTypeSelect.onchange = () => {
+      const wFields = document.getElementById('defective-warranty-fields');
+      if (wFields) {
+        if (defTypeSelect.value === 'warranty') wFields.classList.remove('hidden');
+        else wFields.classList.add('hidden');
+      }
+    };
+  }
+
+  // Form Add Defective Submit
+  const formAddDefective = document.getElementById('form-add-defective');
+  if (formAddDefective) {
+    formAddDefective.onsubmit = (e) => {
+      e.preventDefault();
+      if (store.currentUser.role !== 'admin') return;
+      const itemId = document.getElementById('defective-item-select').value;
+      const item = store.inventory.find((i) => i.id === itemId);
+      if (!item) return;
+
+      const qty = parseInt(document.getElementById('defective-qty').value) || 1;
+      const type = document.getElementById('defective-type-select').value;
+      const serialNo = document.getElementById('defective-serial-input').value.trim();
+      const source = document.getElementById('defective-source').value.trim();
+      const reason = document.getElementById('defective-reason').value.trim();
+      const vendor = document.getElementById('defective-vendor') ? document.getElementById('defective-vendor').value.trim() : '';
+      const rma = document.getElementById('defective-rma-code') ? document.getElementById('defective-rma-code').value.trim() : '';
+
+      const newDef = {
+        id: 'DEF-' + Date.now(),
+        month: store.currentMonth,
+        date: new Date().toLocaleString('vi-VN'),
+        itemId: item.id,
+        itemName: item.name,
+        hasSerial: item.hasSerial,
+        serialNo: serialNo,
+        qty: qty,
+        unit: item.unit,
+        sourceProject: source || 'Kho nội bộ',
+        errorDesc: reason,
+        type: type,
+        vendorName: vendor,
+        rmaCode: rma,
+        sentDate: type === 'warranty' ? new Date().toISOString().slice(0, 10) : '',
+        notes: '',
+        liquidatedAt: ''
+      };
+
+      store.defectiveItems.unshift(newDef);
+
+      if (item.hasSerial && serialNo) {
+        const ser = store.serials.find((s) => s.sn === serialNo);
+        if (ser) ser.status = 'Hỏng/Bảo hành';
+      }
+
+      store.save();
+      renderAll();
+      document.getElementById('modal-add-defective').classList.remove('open');
+      formAddDefective.reset();
+      showToast(`Đã thêm "${item.name}" vào Kho Hỏng (${type})!`, 'success');
+      if (store.sheetApiUrl) pushToGoogleSheet(false);
+    };
+  }
+
+  // Monthly Liquidation Actions
+  const btnExportLiq = document.getElementById('btn-export-liquidation');
+  if (btnExportLiq) {
+    btnExportLiq.onclick = exportLiquidationReport;
+  }
+
+  const btnConfirmLiq = document.getElementById('btn-confirm-liquidation');
+  if (btnConfirmLiq) {
+    btnConfirmLiq.onclick = handleConfirmLiquidation;
+  }
+
+  const btnCopyLiq = document.getElementById('btn-copy-liquidation');
+  if (btnCopyLiq) {
+    btnCopyLiq.onclick = copyLiquidationReport;
+  }
+
+  const btnPrintLiq = document.getElementById('btn-print-liquidation');
+  if (btnPrintLiq) {
+    btnPrintLiq.onclick = () => window.print();
+  }
+}
+
+function renderInvoices() {
+  const container = document.getElementById('inward-invoice-list');
+  const countEl = document.getElementById('invoice-total-count');
+  if (!container) return;
+
+  const monthInvoices = store.invoices.filter((inv) => !store.currentMonth || inv.month === store.currentMonth);
+  if (countEl) countEl.textContent = monthInvoices.length;
+
+  if (monthInvoices.length === 0) {
+    container.innerHTML = '<p class="text-muted text-sm" style="padding:12px 0">Chưa có hóa đơn nào được lưu trong kỳ này.</p>';
+    return;
+  }
+
+  container.innerHTML = monthInvoices
+    .map((inv) => {
+      const amountStr = inv.amount ? inv.amount.toLocaleString('vi-VN') + ' đ' : 'Chưa nhập';
+      return `
+      <div class="invoice-item-card">
+        <div class="d-flex align-center gap-3">
+          ${inv.invoicePhoto ? `<img src="${inv.invoicePhoto}" class="invoice-thumb" onclick="openInvoiceModal('${inv.id}')" title="Bấm xem hóa đơn lớn">` : '<div style="width:48px; height:48px; background:rgba(255,255,255,0.05); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:1.4rem">🧾</div>'}
+          <div>
+            <div class="d-flex align-center gap-2 mb-1">
+              <strong>${inv.invoiceNo}</strong>
+              ${inv.wasOutOfStock ? '<span class="badge-out-restock">⚡ Nhập khi hết/sắp hết hàng</span>' : ''}
+            </div>
+            <div style="font-size:0.85rem; color:var(--text-main)">
+              <strong>${inv.itemName}</strong>: +${inv.qty} ${inv.unit} • NCC: <strong>${inv.supplier}</strong>
+            </div>
+            <div class="text-muted" style="font-size:0.75rem; margin-top:3px">
+              📅 ${inv.date} • Thành tiền: <strong style="color:#FBBF24">${amountStr}</strong> ${inv.notes ? `• <em>${inv.notes}</em>` : ''}
+            </div>
+          </div>
+        </div>
+        <div class="d-flex gap-2">
+          ${inv.invoicePhoto ? `<button class="btn-sm btn-secondary" onclick="openInvoiceModal('${inv.id}')">📸 Xem Hóa Đơn</button>` : ''}
+        </div>
+      </div>
+    `;
+    })
+    .join('');
+}
+
+function renderDefectiveWarehouse() {
+  const repairEl = document.getElementById('stat-defective-repair');
+  const warrantyEl = document.getElementById('stat-defective-warranty');
+  const scrapEl = document.getElementById('stat-defective-scrap');
+  const badgeBadge = document.getElementById('count-defective-badge');
+  const container = document.getElementById('defective-list-container');
+  if (!container) return;
+
+  const currentMonthItems = store.defectiveItems.filter((d) => !store.currentMonth || d.month === store.currentMonth);
+  const repairItems = currentMonthItems.filter((d) => d.type === 'repair');
+  const warrantyItems = currentMonthItems.filter((d) => d.type === 'warranty');
+  const scrapItems = currentMonthItems.filter((d) => d.type === 'scrap');
+  const totalActive = repairItems.length + warrantyItems.length + scrapItems.length;
+
+  if (repairEl) repairEl.textContent = repairItems.length;
+  if (warrantyEl) warrantyEl.textContent = warrantyItems.length;
+  if (scrapEl) scrapEl.textContent = scrapItems.length;
+  if (badgeBadge) badgeBadge.textContent = totalActive;
+
+  const countAll = document.getElementById('defective-count-all');
+  const countRep = document.getElementById('defective-count-repair');
+  const countWar = document.getElementById('defective-count-warranty');
+  const countScr = document.getElementById('defective-count-scrap');
+  if (countAll) countAll.textContent = totalActive;
+  if (countRep) countRep.textContent = repairItems.length;
+  if (countWar) countWar.textContent = warrantyItems.length;
+  if (countScr) countScr.textContent = scrapItems.length;
+
+  const liqMonth = document.getElementById('liquidation-month-label');
+  const liqCount = document.getElementById('liquidation-pending-count');
+  if (liqMonth) liqMonth.textContent = store.currentMonth;
+  if (liqCount) liqCount.textContent = scrapItems.length;
+
+  let displayItems = currentMonthItems;
+  if (currentDefectiveFilter === 'all') {
+    displayItems = currentMonthItems.filter((d) => d.type !== 'liquidated');
+  } else if (currentDefectiveFilter === 'liquidated') {
+    displayItems = currentMonthItems.filter((d) => d.type === 'liquidated');
+  } else {
+    displayItems = currentMonthItems.filter((d) => d.type === currentDefectiveFilter);
+  }
+
+  if (displayItems.length === 0) {
+    container.innerHTML = '<div class="picking-cart-empty">Không có thiết bị/vật tư nào trong danh mục này.</div>';
+    return;
+  }
+
+  container.innerHTML = displayItems
+    .map((d) => {
+      let typeBadge = '';
+      let typeClass = d.type;
+      if (d.type === 'repair') typeBadge = '🔧 Sửa Chữa Nội Bộ';
+      else if (d.type === 'warranty') typeBadge = '🛡️ Bảo Hành Hãng';
+      else if (d.type === 'scrap') typeBadge = '🗑️ Chờ Thanh Lý';
+      else if (d.type === 'liquidated') typeBadge = '📁 Đã Thanh Lý Xóa Kho';
+
+      return `
+      <div class="defective-card ${typeClass}">
+        <div class="defective-header">
+          <div>
+            <span class="defective-badge-type ${typeClass}">${typeBadge}</span>
+            <h3 style="font-size:0.95rem; font-weight:700; margin-top:6px; color:var(--text-main)">${d.itemName}</h3>
+            ${d.serialNo ? `<span class="serial-code" style="font-size:0.85rem">SN: ${d.serialNo}</span>` : ''}
+          </div>
+          <div style="text-align:right">
+            <strong style="font-size:1.15rem; color:var(--text-main)">${d.qty}</strong> <small class="text-muted">${d.unit}</small>
+          </div>
+        </div>
+
+        <div style="font-size:0.8rem; color:var(--text-secondary); line-height:1.5">
+          <div>📍 Nguồn: <strong>${d.sourceProject || 'Kho'}</strong> • 📅 Tiếp nhận: ${d.date}</div>
+          <div style="color:#FB7185; margin-top:2px">⚠️ Lỗi: <strong>${d.errorDesc}</strong></div>
+          ${d.vendorName ? `<div style="color:#38BDF8; margin-top:2px">🏢 Hãng: <strong>${d.vendorName}</strong> ${d.rmaCode ? `(Mã BH: ${d.rmaCode})` : ''} ${d.sentDate ? `• Gửi ngày: ${d.sentDate}` : ''}</div>` : ''}
+          ${d.notes ? `<div class="text-muted mt-1">📝 Ghi chú: ${d.notes}</div>` : ''}
+          ${d.liquidatedAt ? `<div class="text-muted mt-1" style="color:#94A3B8">🗑️ Đã chốt thanh lý xóa kho vào: ${d.liquidatedAt}</div>` : ''}
+        </div>
+
+        <div class="defective-actions admin-only">
+          ${
+            d.type === 'repair'
+              ? `
+            <button class="btn-sm btn-primary" onclick="markDefectiveRepaired('${d.id}')">✅ Sửa Xong -> Nhập Kho</button>
+            <button class="btn-sm btn-secondary" onclick="moveDefectiveToWarranty('${d.id}')">🛡️ Mang Đi Hãng BH</button>
+            <button class="btn-sm text-danger" onclick="moveDefectiveToScrap('${d.id}')">🗑️ Báo Thanh Lý</button>
+          `
+              : d.type === 'warranty'
+              ? `
+            <button class="btn-sm btn-primary" onclick="receiveWarrantyFromVendor('${d.id}')">📦 Hãng Trả Hàng -> Nhập Kho</button>
+            <button class="btn-sm btn-secondary" onclick="editWarrantyInfo('${d.id}')">📝 Sửa Thông Tin BH</button>
+            <button class="btn-sm text-danger" onclick="moveDefectiveToScrap('${d.id}')">🗑️ Hãng Từ Chối -> Thanh Lý</button>
+          `
+              : d.type === 'scrap'
+              ? `
+            <button class="btn-sm text-danger" onclick="liquidateSingleItem('${d.id}')">🗑️ Thanh Lý Món Này</button>
+            <button class="btn-sm btn-secondary" onclick="moveDefectiveToRepair('${d.id}')">🔧 Chuyển Lại Sửa Chữa</button>
+          `
+              : ''
+          }
+        </div>
+      </div>
+    `;
+    })
+    .join('');
+}
+
+// Thao tác Kho hỏng: 1. Sửa chữa xong -> Nhập kho
+window.markDefectiveRepaired = function (defId) {
+  if (store.currentUser.role !== 'admin') return;
+  const def = store.defectiveItems.find((d) => d.id === defId);
+  if (!def) return;
+
+  if (confirm(`Xác nhận thiết bị "${def.itemName}" (${def.qty} ${def.unit}) đã sửa chữa tốt và đưa trở lại vào Tồn kho khả dụng?`)) {
+    const item = store.inventory.find((i) => i.id === def.itemId);
+    if (item) {
+      item.qty += def.qty;
+    }
+    if (def.hasSerial && def.serialNo) {
+      const ser = store.serials.find((s) => s.sn === def.serialNo);
+      if (ser) {
+        ser.status = 'Trong kho';
+        ser.project = '';
+        ser.tech = '';
+      }
+    }
+    store.defectiveItems = store.defectiveItems.filter((d) => d.id !== defId);
     store.save();
     renderAll();
+    showToast(`✅ Đã nhập trả ${def.qty} ${def.unit} "${def.itemName}" vào Tồn kho khả dụng!`, 'success');
     if (store.sheetApiUrl) pushToGoogleSheet(false);
-  };
+  }
+};
 
-  // Form Return Submit (Hoàn trả công trình)
-  document.getElementById('form-return').onsubmit = (e) => {
-    e.preventDefault();
-    if (store.currentUser.role !== 'admin') return;
-    const project = document.getElementById('return-project-name').value.trim();
-    const itemId = document.getElementById('return-item-select').value;
-    const condition = document.querySelector('input[name="return_condition"]:checked').value;
-    const qty = parseInt(document.getElementById('return-quantity').value) || 1;
-    const reason = document.getElementById('return-reason').value.trim();
+// Thao tác Kho hỏng: 2. Chuyển sang Gửi Hãng Bảo Hành
+window.moveDefectiveToWarranty = function (defId) {
+  if (store.currentUser.role !== 'admin') return;
+  const def = store.defectiveItems.find((d) => d.id === defId);
+  if (!def) return;
 
-    const item = store.inventory.find((i) => i.id === itemId);
-    if (!item) return;
+  const vendor = prompt('Nhập tên Hãng / Trung tâm bảo hành tiếp nhận:', def.vendorName || 'Trung tâm bảo hành NSX');
+  if (!vendor) return;
+  const rma = prompt('Nhập mã số phiếu bảo hành / số biên nhận hãng (nếu có):', def.rmaCode || '');
 
-    if (condition === 'good') {
-      item.qty += qty;
-      showToast(`Hoàn trả ${qty} ${item.unit} vào kho thành công!`, 'success');
+  def.type = 'warranty';
+  def.vendorName = vendor.trim();
+  def.rmaCode = rma ? rma.trim() : '';
+  def.sentDate = new Date().toISOString().slice(0, 10);
+  store.save();
+  renderAll();
+  showToast(`Đã chuyển "${def.itemName}" sang danh mục Đang gửi Hãng bảo hành!`, 'info');
+  if (store.sheetApiUrl) pushToGoogleSheet(false);
+};
+
+// Thao tác Kho hỏng: 3. Hãng đã trả hàng bảo hành về -> Nhập kho
+window.receiveWarrantyFromVendor = function (defId) {
+  if (store.currentUser.role !== 'admin') return;
+  const def = store.defectiveItems.find((d) => d.id === defId);
+  if (!def) return;
+
+  const item = store.inventory.find((i) => i.id === def.itemId);
+  const isSerial = def.hasSerial && def.serialNo;
+
+  if (isSerial) {
+    let promptMsg = `Hãng đã trả hàng bảo hành "${def.itemName}".\nThiết bị cũ mã SN: ${def.serialNo}.\n\nHãng trả lại thiết bị cũ đã sửa hay đổi Serial mới?\n- Bấm OK để giữ nguyên Serial cũ (${def.serialNo})\n- Hoặc nhập mã Serial MỚI nếu hãng đổi bảo hành mới:`;
+    const newSn = prompt(promptMsg, def.serialNo);
+    if (newSn === null) return;
+
+    if (newSn.trim() && newSn.trim() !== def.serialNo) {
+      const oldSer = store.serials.find((s) => s.sn === def.serialNo);
+      if (oldSer) oldSer.status = 'Đã thanh lý';
+      store.serials.unshift({
+        id: 'S_' + Date.now(),
+        sn: newSn.trim(),
+        type: def.itemName,
+        status: 'Trong kho',
+        tech: '',
+        project: 'Đổi mới từ hãng ' + (def.vendorName || ''),
+        updated: new Date().toISOString().slice(0, 10)
+      });
     } else {
-      showToast(`Đã tiếp nhận ${qty} ${item.unit} lỗi đưa vào kho bảo hành (RMA)`, 'error');
+      const ser = store.serials.find((s) => s.sn === def.serialNo);
+      if (ser) ser.status = 'Trong kho';
     }
+  }
 
-    store.returnHistory.unshift({
-      id: 'R_' + Date.now(),
-      date: new Date().toLocaleString('vi-VN'),
-      month: store.currentMonth,
-      project: project,
-      item: item.name,
-      qty: qty,
-      unit: item.unit,
-      condition: condition,
-      note: reason || (condition === 'good' ? 'Vật tư thừa còn tốt' : 'Lỗi kỹ thuật')
+  if (item) item.qty += def.qty;
+  store.defectiveItems = store.defectiveItems.filter((d) => d.id !== defId);
+  store.save();
+  renderAll();
+  showToast(`✅ Đã nhận hàng từ hãng và nhập vào kho thành công!`, 'success');
+  if (store.sheetApiUrl) pushToGoogleSheet(false);
+};
+
+// Thao tác Kho hỏng: 4. Sửa thông tin gửi hãng
+window.editWarrantyInfo = function (defId) {
+  if (store.currentUser.role !== 'admin') return;
+  const def = store.defectiveItems.find((d) => d.id === defId);
+  if (!def) return;
+  const vendor = prompt('Cập nhật tên Hãng / TTBH:', def.vendorName || '');
+  if (vendor === null) return;
+  const rma = prompt('Cập nhật mã phiếu gửi hãng:', def.rmaCode || '');
+  def.vendorName = vendor.trim();
+  def.rmaCode = rma ? rma.trim() : '';
+  store.save();
+  renderAll();
+  showToast('Đã cập nhật thông tin bảo hành hãng!', 'success');
+};
+
+// Thao tác Kho hỏng: 5. Chuyển sang chờ thanh lý
+window.moveDefectiveToScrap = function (defId) {
+  if (store.currentUser.role !== 'admin') return;
+  const def = store.defectiveItems.find((d) => d.id === defId);
+  if (!def) return;
+  const reason = prompt('Nhập lý do không thể sửa chữa / Hãng từ chối BH để đưa vào danh mục thanh lý:', def.notes || 'Hư hỏng nặng không thể phục hồi');
+  if (reason === null) return;
+  def.type = 'scrap';
+  def.notes = reason.trim();
+  store.save();
+  renderAll();
+  showToast(`Đã chuyển "${def.itemName}" vào danh sách Chờ thanh lý!`, 'info');
+  if (store.sheetApiUrl) pushToGoogleSheet(false);
+};
+
+// Thao tác Kho hỏng: 6. Chuyển lại sửa chữa
+window.moveDefectiveToRepair = function (defId) {
+  if (store.currentUser.role !== 'admin') return;
+  const def = store.defectiveItems.find((d) => d.id === defId);
+  if (!def) return;
+  def.type = 'repair';
+  store.save();
+  renderAll();
+  showToast(`Đã chuyển lại "${def.itemName}" về danh mục Chờ sửa chữa.`, 'info');
+};
+
+// Thao tác Kho hỏng: 7. Thanh lý đơn lẻ
+window.liquidateSingleItem = function (defId) {
+  if (store.currentUser.role !== 'admin') return;
+  const def = store.defectiveItems.find((d) => d.id === defId);
+  if (!def) return;
+
+  if (confirm(`Xác nhận thanh lý tiêu hủy món "${def.itemName}" (${def.qty} ${def.unit}) và xóa khỏi kho?`)) {
+    def.type = 'liquidated';
+    def.liquidatedAt = new Date().toLocaleString('vi-VN');
+    if (def.hasSerial && def.serialNo) {
+      const ser = store.serials.find((s) => s.sn === def.serialNo);
+      if (ser) ser.status = 'Đã thanh lý';
+    }
+    store.save();
+    renderAll();
+    showToast(`🗑️ Đã ghi nhận thanh lý "${def.itemName}"!`, 'info');
+    if (store.sheetApiUrl) pushToGoogleSheet(false);
+  }
+};
+
+// 8. Báo Cáo Thanh Lý Hàng Tháng
+function exportLiquidationReport() {
+  const scrapItems = store.defectiveItems.filter((d) => d.type === 'scrap' && (!store.currentMonth || d.month === store.currentMonth));
+  const container = document.getElementById('liquidation-report-print-content');
+  if (!container) return;
+
+  if (scrapItems.length === 0) {
+    container.innerHTML = `<div class="p-4 text-center text-muted">Kỳ <strong>${store.currentMonth}</strong> hiện không có vật tư nào trong danh sách Chờ thanh lý.</div>`;
+  } else {
+    let rowsHtml = scrapItems
+      .map(
+        (it, idx) => `
+      <tr>
+        <td style="padding:8px; border:1px solid #334155; text-align:center">${idx + 1}</td>
+        <td style="padding:8px; border:1px solid #334155"><strong>${it.itemName}</strong> ${it.serialNo ? `<br><small class="text-muted">SN: ${it.serialNo}</small>` : ''}</td>
+        <td style="padding:8px; border:1px solid #334155; text-align:center">${it.qty} ${it.unit}</td>
+        <td style="padding:8px; border:1px solid #334155">${it.sourceProject || 'Kho'}</td>
+        <td style="padding:8px; border:1px solid #334155; color:#FB7185">${it.errorDesc}</td>
+        <td style="padding:8px; border:1px solid #334155">${it.notes || 'Không thể phục hồi'}</td>
+      </tr>
+    `
+      )
+      .join('');
+
+    container.innerHTML = `
+      <div style="padding:16px; font-family:inherit">
+        <div style="text-align:center; margin-bottom:16px">
+          <h2 style="font-size:1.15rem; color:#F1F5F9; margin-bottom:4px">BIÊN BẢN ĐỀ XUẤT THANH LÝ VẬT TƯ HỎNG</h2>
+          <p style="font-size:0.85rem; color:#94A3B8">Kỳ kiểm kê & báo cáo: <strong>${store.currentMonth}</strong> • Ngày lập: ${new Date().toLocaleDateString('vi-VN')}</p>
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; font-size:0.8rem; margin-bottom:20px; color:#E2E8F0">
+          <thead>
+            <tr style="background:#1E293B">
+              <th style="padding:8px; border:1px solid #334155">STT</th>
+              <th style="padding:8px; border:1px solid #334155">Tên Vật Tư / Thiết Bị</th>
+              <th style="padding:8px; border:1px solid #334155">Số Lượng</th>
+              <th style="padding:8px; border:1px solid #334155">Nguồn Gốc</th>
+              <th style="padding:8px; border:1px solid #334155">Tình Trạng Hư Hỏng</th>
+              <th style="padding:8px; border:1px solid #334155">Lý Do Đề Xuất</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rowsHtml}
+          </tbody>
+        </table>
+
+        <div style="display:flex; justify-content:space-between; margin-top:30px; font-size:0.85rem; text-align:center">
+          <div>
+            <strong>NGƯỜI LẬP BIÊN BẢN</strong><br>
+            <span class="text-muted">(Quản lý kho)</span><br><br><br>
+            <strong>${store.currentUser.name}</strong>
+          </div>
+          <div>
+            <strong>BAN GIÁM ĐỐC PHÊ DUYỆT</strong><br>
+            <span class="text-muted">(Ký & ghi rõ họ tên)</span><br><br><br>
+            <em>(Đã xem & duyệt thanh lý)</em>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  document.getElementById('modal-liquidation-report').classList.add('open');
+}
+
+function handleConfirmLiquidation() {
+  if (store.currentUser.role !== 'admin') return;
+  const scrapItems = store.defectiveItems.filter((d) => d.type === 'scrap' && (!store.currentMonth || d.month === store.currentMonth));
+  if (scrapItems.length === 0) {
+    showToast('Không có vật tư nào đang chờ thanh lý trong tháng này!', 'info');
+    return;
+  }
+
+  if (confirm(`Xác nhận Ban Giám Đốc đã duyệt thanh lý toàn bộ ${scrapItems.length} món hỏng trong kỳ ${store.currentMonth}?\n\nToàn bộ các món này sẽ được chuyển vào Sổ Đã Thanh Lý và xóa khỏi danh mục theo dõi hàng hỏng.`)) {
+    const timeNow = new Date().toLocaleString('vi-VN');
+    scrapItems.forEach((d) => {
+      d.type = 'liquidated';
+      d.liquidatedAt = timeNow;
+      if (d.hasSerial && d.serialNo) {
+        const ser = store.serials.find((s) => s.sn === d.serialNo);
+        if (ser) ser.status = 'Đã thanh lý';
+      }
     });
 
     store.save();
     renderAll();
-    document.getElementById('form-return').reset();
+    showToast(`🗑️ Đã chốt thanh lý ${scrapItems.length} món và xóa khỏi kho hỏng!`, 'success');
     if (store.sheetApiUrl) pushToGoogleSheet(false);
-  };
+  }
 }
+
+function copyLiquidationReport() {
+  const scrapItems = store.defectiveItems.filter((d) => d.type === 'scrap' && (!store.currentMonth || d.month === store.currentMonth));
+  if (scrapItems.length === 0) return;
+
+  let text = `📋 BIÊN BẢN ĐỀ XUẤT THANH LÝ VẬT TƯ HỎNG - KỲ ${store.currentMonth}\n`;
+  text += `👤 Quản lý kho: ${store.currentUser.name}\n`;
+  text += `📅 Ngày: ${new Date().toLocaleDateString('vi-VN')}\n------------------------\n`;
+  scrapItems.forEach((it, idx) => {
+    text += `${idx + 1}. ${it.itemName} (${it.qty} ${it.unit}) ${it.serialNo ? `[SN: ${it.serialNo}]` : ''} - Lỗi: ${it.errorDesc}\n`;
+  });
+  text += `------------------------\nKính trình Ban Giám Đốc xem xét và phê duyệt thanh lý xóa sổ khỏi kho!`;
+
+  navigator.clipboard
+    .writeText(text)
+    .then(() => showToast('Đã sao chép nội dung biên bản thanh lý!', 'success'))
+    .catch(() => showToast('Không thể sao chép tự động.', 'error'));
+}
+
+// 9. Invoice Modal Viewer
+window.openInvoiceModal = function (invId) {
+  const inv = store.invoices.find((i) => i.id === invId);
+  if (!inv) return;
+
+  const contentEl = document.getElementById('modal-invoice-body-content');
+  const titleEl = document.getElementById('modal-invoice-title');
+  if (titleEl) titleEl.textContent = `Hóa Đơn: ${inv.invoiceNo} (${inv.supplier})`;
+
+  const amountStr = inv.amount ? inv.amount.toLocaleString('vi-VN') + ' VNĐ' : 'Chưa nhập số tiền';
+
+  contentEl.innerHTML = `
+    <div style="font-size:0.88rem; line-height:1.6">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px; background:rgba(255,255,255,0.03); padding:12px; border-radius:8px">
+        <div>
+          <span class="text-muted block text-xs">Số hóa đơn / Phiếu mua:</span>
+          <strong style="color:#38BDF8">${inv.invoiceNo}</strong>
+        </div>
+        <div>
+          <span class="text-muted block text-xs">Nhà cung cấp / Đơn vị bán:</span>
+          <strong>${inv.supplier}</strong>
+        </div>
+        <div>
+          <span class="text-muted block text-xs">Vật tư nhập:</span>
+          <strong>${inv.itemName} (+${inv.qty} ${inv.unit})</strong>
+        </div>
+        <div>
+          <span class="text-muted block text-xs">Tổng tiền thanh toán:</span>
+          <strong style="color:#FBBF24">${amountStr}</strong>
+        </div>
+        <div>
+          <span class="text-muted block text-xs">Ngày nhập:</span>
+          <span>${inv.date} (Kỳ ${inv.month})</span>
+        </div>
+        <div>
+          <span class="text-muted block text-xs">Trạng thái kho lúc nhập:</span>
+          <span>${inv.wasOutOfStock ? '<span class="badge-out-restock">⚡ Nhập khi hết/sắp hết hàng</span>' : 'Nhập bổ sung định kỳ'}</span>
+        </div>
+      </div>
+      ${inv.notes ? `<p class="mb-3"><strong>Ghi chú:</strong> ${inv.notes}</p>` : ''}
+      
+      <div style="margin-top:10px">
+        <strong style="display:block; margin-bottom:8px">Ảnh chụp hóa đơn chứng từ:</strong>
+        ${
+          inv.invoicePhoto
+            ? `<div style="text-align:center; background:#000; padding:10px; border-radius:8px">
+            <img src="${inv.invoicePhoto}" id="modal-invoice-photo-view" style="max-width:100%; max-height:480px; object-fit:contain; border-radius:4px" alt="Ảnh hóa đơn">
+          </div>`
+            : '<p class="text-muted text-sm">Chưa đính kèm ảnh chụp hóa đơn cho đợt nhập này.</p>'
+        }
+      </div>
+    </div>
+  `;
+
+  const btnDl = document.getElementById('btn-download-invoice-photo');
+  if (btnDl) {
+    if (inv.invoicePhoto) {
+      btnDl.style.display = 'inline-block';
+      btnDl.onclick = () => {
+        const a = document.createElement('a');
+        a.href = inv.invoicePhoto;
+        a.download = `hoadon_${inv.invoiceNo}_${inv.month}.jpg`;
+        a.click();
+      };
+    } else {
+      btnDl.style.display = 'none';
+    }
+  }
+
+  document.getElementById('modal-view-invoice').classList.add('open');
+};
+
+window.openInvoicePhotoPreview = function (dataUrl, title) {
+  const modal = document.getElementById('modal-view-invoice');
+  const titleEl = document.getElementById('modal-invoice-title');
+  const contentEl = document.getElementById('modal-invoice-body-content');
+  if (titleEl) titleEl.textContent = title || 'Xem Ảnh Hóa Đơn';
+  contentEl.innerHTML = `
+    <div style="text-align:center; background:#000; padding:10px; border-radius:8px">
+      <img src="${dataUrl}" style="max-width:100%; max-height:500px; object-fit:contain; border-radius:4px">
+    </div>
+  `;
+  const btnDl = document.getElementById('btn-download-invoice-photo');
+  if (btnDl) {
+    btnDl.onclick = () => {
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = `hoadon_preview.jpg`;
+      a.click();
+    };
+  }
+  modal.classList.add('open');
+};
 
 function renderReturnHistory() {
   const container = document.getElementById('return-history-list');
@@ -1343,6 +2366,12 @@ async function fetchFromGoogleSheet(showSuccessToast = false) {
       if (data.serials && data.serials.length > 0) {
         store.serials = data.serials;
       }
+      if (data.defectiveItems) {
+        store.defectiveItems = data.defectiveItems;
+      }
+      if (data.invoices) {
+        store.invoices = data.invoices;
+      }
       store.save();
       renderAll();
       if (showSuccessToast) {
@@ -1366,7 +2395,9 @@ async function pushToGoogleSheet(showFeedback = true) {
       month: store.currentMonth,
       inventory: store.inventory,
       dispatchHistory: store.dispatchHistory,
-      serials: store.serials
+      serials: store.serials,
+      defectiveItems: store.defectiveItems,
+      invoices: store.invoices
     };
 
     const res = await fetch(store.sheetApiUrl, {
@@ -1445,6 +2476,35 @@ function initModals() {
     if (store.sheetApiUrl) pushToGoogleSheet(false);
   };
 
+  // Form chỉnh sửa định mức tối thiểu & thông số vật tư
+  const formEditItem = document.getElementById('form-edit-item');
+  if (formEditItem) {
+    formEditItem.onsubmit = (e) => {
+      e.preventDefault();
+      if (store.currentUser.role !== 'admin') {
+        showToast('Chỉ Quản lý kho mới có quyền lưu chỉnh sửa!', 'error');
+        return;
+      }
+      const itemId = document.getElementById('edit-item-id').value;
+      const item = store.inventory.find((i) => i.id === itemId);
+      if (!item) return;
+
+      item.name = document.getElementById('edit-item-name').value.trim();
+      item.category = document.getElementById('edit-item-category').value;
+      item.unit = document.getElementById('edit-item-unit').value.trim();
+      item.qty = parseInt(document.getElementById('edit-item-qty').value) || 0;
+      item.min = parseInt(document.getElementById('edit-item-min').value) || 0;
+      item.location = document.getElementById('edit-item-location').value.trim();
+      item.note = document.getElementById('edit-item-note').value.trim();
+
+      store.save();
+      renderAll();
+      document.getElementById('modal-edit-item').classList.remove('open');
+      showToast(`Đã lưu định mức tối thiểu & thông số cho "${item.name}"!`, 'success');
+      if (store.sheetApiUrl) pushToGoogleSheet(false);
+    };
+  }
+
   document.getElementById('btn-print-slip').onclick = () => {
     window.print();
   };
@@ -1495,6 +2555,8 @@ function initBackupSystem() {
       customKits: store.customKits,
       dispatchHistory: store.dispatchHistory,
       returnHistory: store.returnHistory,
+      defectiveItems: store.defectiveItems,
+      invoices: store.invoices,
       exportedAt: new Date().toISOString()
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1522,6 +2584,8 @@ function initBackupSystem() {
           if (imported.customKits) store.customKits = imported.customKits;
           if (imported.dispatchHistory) store.dispatchHistory = imported.dispatchHistory;
           if (imported.returnHistory) store.returnHistory = imported.returnHistory;
+          if (imported.defectiveItems) store.defectiveItems = imported.defectiveItems;
+          if (imported.invoices) store.invoices = imported.invoices;
           store.save();
           renderAll();
           showToast('Phục hồi dữ liệu kho thành công!', 'success');

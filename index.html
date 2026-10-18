@@ -124,6 +124,7 @@
       <!-- Category Filter Pills -->
       <div class="category-filters" id="category-filters">
         <button class="filter-pill active" data-cat="all">Tất cả (<span id="count-all">29</span>)</button>
+        <button class="filter-pill filter-warning-pill" data-cat="low-stock">⚠️ Sắp hết (<span id="count-low">0</span>)</button>
         <button class="filter-pill" data-cat="Thiết bị chính">Thiết bị SN</button>
         <button class="filter-pill" data-cat="Cảm biến">Cảm biến</button>
         <button class="filter-pill" data-cat="Dây cáp">Dây cáp</button>
@@ -229,18 +230,21 @@
       </div>
     </section>
 
-    <!-- TAB 4: NHẬP KHO & HOÀN TRẢ CÔNG TRÌNH -->
+    <!-- TAB 4: NHẬP KHO, HOÀN TRẢ & KHO HỎNG -->
     <section id="tab-in-out" class="tab-pane">
       <div class="toggle-switch-container mb-4">
-        <button class="toggle-btn active" id="toggle-inward">📥 Nhập thêm hàng</button>
-        <button class="toggle-btn" id="toggle-return">🔄 Hoàn trả công trình (Vật tư thừa / Hỏng)</button>
+        <button class="toggle-btn active" id="toggle-inward">📥 Nhập kho & Hóa đơn</button>
+        <button class="toggle-btn" id="toggle-return">🔄 Hoàn trả công trình</button>
+        <button class="toggle-btn" id="toggle-defective">⚠️ Kho Hỏng & Bảo Hành (<span id="count-defective-badge">0</span>)</button>
       </div>
 
-      <!-- VIEW: NHẬP KHO THÊM -->
+      <!-- VIEW 1: NHẬP KHO THÊM & LƯU HÓA ĐƠN -->
       <div id="view-inward" class="in-out-view active">
         <div class="card p-4">
-          <h2 class="card-title">Nhập Thêm Vật Tư Vào Kho</h2>
-          <p class="text-muted text-sm mb-4">Cộng thêm số lượng tồn kho hoặc nhập lô thiết bị Serial mới</p>
+          <h2 class="card-title">Nhập Thêm Vật Tư & Lưu Hóa Đơn</h2>
+          <p class="text-muted text-sm mb-3">Cộng thêm số lượng tồn kho, lưu hóa đơn mua hàng và ảnh chụp chứng từ đối soát</p>
+
+          <div id="inward-stock-alert" class="alert-banner alert-warning mb-3 hidden"></div>
 
           <form id="form-inward">
             <div class="form-group mb-3">
@@ -266,19 +270,72 @@ CAM-2026-003"></textarea>
               <small class="text-muted">Hệ thống sẽ tự động đếm số lượng và tạo từng bản ghi thiết bị trong kho.</small>
             </div>
 
+            <!-- THÔNG TIN HÓA ĐƠN / CHỨNG TỪ NHẬP HÀNG -->
+            <div class="card p-3 mb-3" style="background: rgba(255,255,255,0.02); border: 1px dashed var(--border-subtle)">
+              <div class="d-flex justify-between align-center mb-2">
+                <strong style="font-size:0.88rem; color:#38BDF8">🧾 Hóa Đơn / Phiếu Mua Hàng</strong>
+                <span id="badge-restock-status" class="badge-out-restock hidden">⚡ Nhập khi hết hàng</span>
+              </div>
+              
+              <div class="form-grid mb-2">
+                <div class="form-group">
+                  <label for="inward-invoice-no">Số hóa đơn / Mã phiếu mua</label>
+                  <input type="text" id="inward-invoice-no" class="input-field" placeholder="VD: HD-2026-889 hoặc PX-01">
+                </div>
+                <div class="form-group">
+                  <label for="inward-supplier">Nhà cung cấp / Đơn vị bán</label>
+                  <input type="text" id="inward-supplier" class="input-field" placeholder="VD: Công ty Hikvision / Cáp Cadivi">
+                </div>
+              </div>
+
+              <div class="form-grid mb-2">
+                <div class="form-group">
+                  <label for="inward-amount">Tổng tiền hóa đơn (VNĐ - tùy chọn)</label>
+                  <input type="number" id="inward-amount" class="input-field" placeholder="VD: 1500000" min="0">
+                </div>
+                <div class="form-group">
+                  <label for="inward-invoice-file">📸 Chụp ảnh / Tải ảnh Hóa đơn</label>
+                  <input type="file" id="inward-invoice-file" class="input-field" accept="image/*" capture="environment">
+                </div>
+              </div>
+
+              <!-- Preview ảnh hóa đơn -->
+              <div id="invoice-preview-container" class="hidden mt-2 p-2" style="background:rgba(0,0,0,0.3); border-radius:8px">
+                <div class="d-flex justify-between align-center mb-1">
+                  <small class="text-success">✅ Đã đính kèm ảnh hóa đơn</small>
+                  <button type="button" class="btn-sm text-danger" id="btn-remove-invoice-photo">Xóa ảnh</button>
+                </div>
+                <img id="invoice-preview-img" style="max-height:120px; border-radius:6px; object-fit:contain; cursor:pointer" title="Bấm để xem to">
+              </div>
+            </div>
+
             <div class="form-group mb-4">
-              <label for="inward-notes">Ghi chú nhập kho / Nhà cung cấp</label>
-              <input type="text" id="inward-notes" class="input-field" placeholder="VD: Lô hàng nhập từ NSX đợt 2">
+              <label for="inward-notes">Ghi chú nhập kho</label>
+              <input type="text" id="inward-notes" class="input-field" placeholder="VD: Lô hàng nhập bổ sung dự án tháng 10">
             </div>
 
             <button type="submit" class="btn btn-primary w-full">
-              Xác Nhận Nhập Kho
+              Xác Nhận Nhập Kho & Lưu Hóa Đơn
             </button>
           </form>
         </div>
+
+        <!-- LỊCH SỬ HÓA ĐƠN ĐÃ NHẬP -->
+        <div class="card p-4 mt-4">
+          <div class="d-flex justify-between align-center mb-3">
+            <div>
+              <h3 class="card-title">🧾 Lịch Sử Hóa Đơn & Đợt Nhập Hàng</h3>
+              <p class="text-muted text-sm">Tra cứu hóa đơn và ảnh chụp chứng từ mua hàng</p>
+            </div>
+            <span class="text-sm text-muted">Tổng: <strong id="invoice-total-count" style="color:var(--primary)">0</strong></span>
+          </div>
+          <div id="inward-invoice-list">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
       </div>
 
-      <!-- VIEW: HOÀN TRẢ CÔNG TRÌNH -->
+      <!-- VIEW 2: HOÀN TRẢ CÔNG TRÌNH -->
       <div id="view-return" class="in-out-view">
         <div class="card p-4">
           <h2 class="card-title">Tiếp Nhận Hoàn Trả Sau Thi Công</h2>
@@ -317,6 +374,16 @@ CAM-2026-003"></textarea>
               </div>
             </div>
 
+            <!-- Phân loại hướng xử lý nếu hỏng -->
+            <div id="return-defective-options" class="form-group mb-3 hidden p-3" style="background:rgba(244,63,94,0.06); border:1px solid rgba(244,63,94,0.3); border-radius:8px">
+              <label for="return-defective-dest" style="color:var(--rose); font-weight:700">⚠️ Hướng xử lý đưa vào Kho Hỏng:</label>
+              <select id="return-defective-dest" class="input-field">
+                <option value="repair">🔧 Chờ sửa chữa (Nội bộ kho/thợ tự khắc phục)</option>
+                <option value="warranty">🛡️ Cần mang đến Hãng bảo hành</option>
+                <option value="scrap">🗑️ Hỏng nặng không thể sửa (Chờ thanh lý)</option>
+              </select>
+            </div>
+
             <div class="form-group mb-3" id="return-qty-group">
               <label for="return-quantity">Số lượng / Số mét hoàn trả</label>
               <input type="number" id="return-quantity" class="input-field" min="1" value="1" required>
@@ -346,6 +413,70 @@ CAM-2026-003"></textarea>
           <h3 class="card-title mb-3">Lịch sử hoàn trả gần đây</h3>
           <div id="return-history-list" class="text-sm">
             <!-- Dynamic -->
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 3: KHO HÀNG HỎNG & BẢO HÀNH (RMA) -->
+      <div id="view-defective" class="in-out-view">
+        <div class="card p-4 mb-4">
+          <div class="d-flex justify-between align-center mb-3">
+            <div>
+              <h2 class="card-title">Kho Hàng Hỏng & Quản Lý Sự Cố (RMA)</h2>
+              <p class="text-muted text-sm">Theo dõi hàng Sửa chữa nội bộ, Gửi bảo hành hãng và Báo cáo thanh lý hàng tháng</p>
+            </div>
+            <button id="btn-open-add-defective" class="btn btn-primary admin-only">+ Báo Hàng Hỏng</button>
+          </div>
+
+          <!-- Chỉ số thống kê Kho hỏng -->
+          <div class="defective-stats-row">
+            <div class="defective-stat-box repair">
+              <div>
+                <span class="text-xs text-muted block">🔧 Chờ Sửa Chữa</span>
+                <strong id="stat-defective-repair" style="font-size:1.3rem; color:#FBBF24">0</strong>
+              </div>
+              <small class="text-muted">Nội bộ sửa</small>
+            </div>
+            <div class="defective-stat-box warranty">
+              <div>
+                <span class="text-xs text-muted block">🛡️ Bảo Hành Hãng</span>
+                <strong id="stat-defective-warranty" style="font-size:1.3rem; color:#38BDF8">0</strong>
+              </div>
+              <small class="text-muted">Chờ hãng gửi lại</small>
+            </div>
+            <div class="defective-stat-box scrap">
+              <div>
+                <span class="text-xs text-muted block">🗑️ Đề Xuất Thanh Lý</span>
+                <strong id="stat-defective-scrap" style="font-size:1.3rem; color:#FB7185">0</strong>
+              </div>
+              <small class="text-muted">Tháng này</small>
+            </div>
+          </div>
+
+          <!-- Bộ lọc trạng thái Kho hỏng -->
+          <div class="category-filters" id="defective-status-filters">
+            <button class="filter-pill active" data-defective-filter="all">Tất cả (<span id="defective-count-all">0</span>)</button>
+            <button class="filter-pill" data-defective-filter="repair">🔧 Sửa Chữa (<span id="defective-count-repair">0</span>)</button>
+            <button class="filter-pill" data-defective-filter="warranty">🛡️ Bảo Hành Hãng (<span id="defective-count-warranty">0</span>)</button>
+            <button class="filter-pill filter-warning-pill" data-defective-filter="scrap">🗑️ Chờ Thanh Lý (<span id="defective-count-scrap">0</span>)</button>
+            <button class="filter-pill" data-defective-filter="liquidated">📁 Đã Thanh Lý Xong</button>
+          </div>
+
+          <!-- Thanh thao tác thanh lý hàng tháng -->
+          <div id="liquidation-action-bar" class="p-3 mb-3 border rounded d-flex justify-between align-center flex-wrap gap-2" style="background:rgba(244,63,94,0.08); border-color:rgba(244,63,94,0.3)">
+            <div>
+              <strong style="color:var(--rose); font-size:0.88rem">📅 Thống kê thanh lý Kỳ <span id="liquidation-month-label">2026-10</span>:</strong>
+              <p class="text-xs text-muted mt-1">Có <strong id="liquidation-pending-count" class="text-white">0</strong> vật tư hỏng đề xuất xóa sổ khỏi kho tháng này.</p>
+            </div>
+            <div class="d-flex gap-2">
+              <button id="btn-export-liquidation" class="btn-sm btn-secondary" title="Xem & in biên bản trình Ban Giám Đốc">📋 Xuất Biên Bản</button>
+              <button id="btn-confirm-liquidation" class="btn-sm btn-primary admin-only" style="background:var(--rose)" title="Chốt thanh lý và xóa khỏi kho">🗑️ Báo Thanh Lý & Xóa Kho</button>
+            </div>
+          </div>
+
+          <!-- Danh sách thiết bị / vật tư hỏng -->
+          <div class="defective-list" id="defective-list-container">
+            <!-- Rendered by JS -->
           </div>
         </div>
       </div>
@@ -544,14 +675,74 @@ CAM-2026-003"></textarea>
     </div>
   </div>
 
-  <!-- MODAL: TẠO BỘ KIT TÙY CHỈNH THEO DỰ ÁN -->
+  <!-- MODAL: CHỈNH SỬA VẬT TƯ & MỨC TỒN TỐI THIỂU (MIN STOCK) -->
+  <div id="modal-edit-item" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-edit-item-title">Cài Đặt Định Mức & Thông Số Vật Tư</h3>
+        <button class="modal-close" data-close="modal-edit-item">&times;</button>
+      </div>
+      <form id="form-edit-item">
+        <input type="hidden" id="edit-item-id">
+        <div class="modal-body">
+          <div class="form-group mb-3">
+            <label for="edit-item-name">Tên vật tư</label>
+            <input type="text" id="edit-item-name" class="input-field" required>
+          </div>
+          <div class="form-grid mb-3">
+            <div class="form-group">
+              <label for="edit-item-category">Nhóm vật tư</label>
+              <select id="edit-item-category" class="input-field" required>
+                <option value="Thiết bị chính">Thiết bị chính</option>
+                <option value="Cảm biến">Cảm biến</option>
+                <option value="Dây cáp">Dây cáp</option>
+                <option value="Phụ kiện">Phụ kiện nguồn/Jack</option>
+                <option value="Tiêu hao">Vật tư tiêu hao</option>
+                <option value="Dụng cụ">Công cụ dụng cụ</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="edit-item-unit">Đơn vị tính</label>
+              <input type="text" id="edit-item-unit" class="input-field" required>
+            </div>
+          </div>
+          <div class="form-grid mb-3">
+            <div class="form-group">
+              <label for="edit-item-qty">Số lượng tồn kho hiện có</label>
+              <input type="number" id="edit-item-qty" class="input-field" min="0" required>
+            </div>
+            <div class="form-group">
+              <label for="edit-item-min" style="color:var(--amber); font-weight:700">⚠️ Mức tồn tối thiểu (Min Alert)</label>
+              <input type="number" id="edit-item-min" class="input-field" min="0" required style="border-color:var(--amber)">
+              <small class="text-muted" style="font-size:0.72rem">Dưới mức này app sẽ bật cảnh báo vàng "Sắp hết hàng"</small>
+            </div>
+          </div>
+          <div class="form-group mb-3">
+            <label for="edit-item-location">Vị trí lưu kho</label>
+            <input type="text" id="edit-item-location" class="input-field" placeholder="VD: Kệ A1 - Tầng 2">
+          </div>
+          <div class="form-group mb-3">
+            <label for="edit-item-note">Ghi chú kỹ thuật</label>
+            <input type="text" id="edit-item-note" class="input-field" placeholder="VD: Bắt vít hoặc dán xốp xanh">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close="modal-edit-item">Hủy</button>
+          <button type="submit" class="btn btn-primary">Lưu Thay Đổi</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: TẠO & CHỈNH SỬA ĐỊNH LƯỢNG BỘ KIT -->
   <div id="modal-create-kit" class="modal-backdrop">
     <div class="modal-dialog modal-lg">
       <div class="modal-header">
-        <h3 class="modal-title">Tạo Bộ Kit Mới Theo Dự Án / Yêu Cầu</h3>
+        <h3 class="modal-title" id="modal-kit-title">Cài Đặt Định Lượng Bộ Kit</h3>
         <button class="modal-close" data-close="modal-create-kit">&times;</button>
       </div>
       <form id="form-create-kit">
+        <input type="hidden" id="kit-editing-id">
         <div class="modal-body">
           <div class="form-grid mb-3">
             <div class="form-group">
@@ -647,6 +838,108 @@ CAM-2026-003"></textarea>
           <button type="submit" class="btn btn-primary">Lưu & Kết Nối</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- MODAL: XEM ẢNH & CHI TIẾT HÓA ĐƠN -->
+  <div id="modal-view-invoice" class="modal-backdrop">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modal-invoice-title">Chi Tiết Hóa Đơn Nhập Hàng</h3>
+        <button class="modal-close" data-close="modal-view-invoice">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-invoice-body-content">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close="modal-view-invoice">Đóng</button>
+        <button type="button" class="btn btn-primary" id="btn-download-invoice-photo">📥 Tải Ảnh Hóa Đơn</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: BÁO HÀNG HỎNG / ĐƯA VÀO KHO CÁCH LY -->
+  <div id="modal-add-defective" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 class="modal-title">Báo Hàng Hỏng / Chuyển Kho RMA</h3>
+        <button class="modal-close" data-close="modal-add-defective">&times;</button>
+      </div>
+      <form id="form-add-defective">
+        <div class="modal-body">
+          <div class="form-group mb-3">
+            <label for="defective-item-select">Chọn vật tư / thiết bị hỏng</label>
+            <select id="defective-item-select" class="input-field" required>
+              <!-- Filled by JS -->
+            </select>
+          </div>
+
+          <div class="form-grid mb-3">
+            <div class="form-group">
+              <label for="defective-qty">Số lượng</label>
+              <input type="number" id="defective-qty" class="input-field" min="1" value="1" required>
+            </div>
+            <div class="form-group">
+              <label for="defective-type-select">Hướng xử lý</label>
+              <select id="defective-type-select" class="input-field" required>
+                <option value="repair">🔧 Sửa chữa nội bộ</option>
+                <option value="warranty">🛡️ Cần mang đến Hãng bảo hành</option>
+                <option value="scrap">🗑️ Hỏng nặng (Chờ thanh lý)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group mb-3 hidden" id="defective-serial-group">
+            <label for="defective-serial-input">Mã Serial Number (nếu có)</label>
+            <input type="text" id="defective-serial-input" class="input-field" placeholder="VD: CAM-SN-2601 hoặc BOX-SN-8803">
+          </div>
+
+          <div class="form-group mb-3">
+            <label for="defective-source">Nguồn thu hồi / Công trình / KTV</label>
+            <input type="text" id="defective-source" class="input-field" placeholder="VD: Nhà kho Tân Bình - KTV Nguyễn Văn A">
+          </div>
+
+          <div class="form-group mb-3">
+            <label for="defective-reason">Mô tả hiện tượng lỗi / Lý do hỏng</label>
+            <textarea id="defective-reason" class="input-field" rows="2" placeholder="VD: Mất nguồn 12V, cổng LAN không nhận, rách vỏ..." required></textarea>
+          </div>
+
+          <div id="defective-warranty-fields" class="form-grid mb-3 hidden">
+            <div class="form-group">
+              <label for="defective-vendor">Tên Hãng / Trung tâm BH</label>
+              <input type="text" id="defective-vendor" class="input-field" placeholder="VD: TTBH Hikvision Sài Gòn">
+            </div>
+            <div class="form-group">
+              <label for="defective-rma-code">Mã phiếu gửi BH (nếu có)</label>
+              <input type="text" id="defective-rma-code" class="input-field" placeholder="VD: RMA-2026-991">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-close="modal-add-defective">Hủy</button>
+          <button type="submit" class="btn btn-primary">Xác Nhận Đưa Vào Kho Hỏng</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: XUẤT BIÊN BẢN BÁO CÁO THANH LÝ HÀNG HỎNG -->
+  <div id="modal-liquidation-report" class="modal-backdrop">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <h3 class="modal-title">Biên Bản Thống Kê & Đề Xuất Thanh Lý</h3>
+        <button class="modal-close" data-close="modal-liquidation-report">&times;</button>
+      </div>
+      <div class="modal-body" id="liquidation-report-print-content">
+        <!-- Rendered by JS -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-close="modal-liquidation-report">Đóng</button>
+        <button type="button" class="btn btn-secondary" id="btn-copy-liquidation">📋 Sao Chép Gửi Sếp</button>
+        <button type="button" class="btn btn-primary" id="btn-print-liquidation">🖨️ In Biên Bản / PDF</button>
+      </div>
     </div>
   </div>
 

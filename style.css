@@ -361,6 +361,21 @@ body {
   font-weight: 700;
 }
 
+.filter-pill.filter-warning-pill {
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #FBBF24;
+}
+
+.filter-pill.filter-warning-pill:hover {
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.filter-pill.filter-warning-pill.active {
+  background: rgba(245, 158, 11, 0.22);
+  color: #FDE68A;
+  border-color: #F59E0B;
+}
+
 /* ================= INVENTORY GRID & CARDS ================= */
 .item-grid {
   display: grid;
@@ -497,6 +512,24 @@ body {
   background: rgba(6, 182, 212, 0.2);
   color: #38BDF8;
   border-color: rgba(6, 182, 212, 0.4);
+}
+
+.btn-card-edit {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  color: #FCD34D;
+  padding: 6px 9px;
+  border-radius: var(--radius-sm);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-card-edit:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #FFF;
 }
 
 /* ================= SERIAL LIST ================= */
@@ -642,17 +675,23 @@ body {
   border: 1px solid rgba(139, 92, 246, 0.4);
 }
 
-.btn-kit-del {
+.btn-kit-actions {
   position: absolute;
   top: 6px;
   right: 6px;
-  background: none;
-  border: none;
+  display: flex;
+  gap: 3px;
+  align-items: center;
+}
+
+.btn-kit-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-subtle);
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: 0.76rem;
   cursor: pointer;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: var(--radius-full);
   display: flex;
   align-items: center;
@@ -660,9 +699,16 @@ body {
   transition: var(--transition);
 }
 
-.btn-kit-del:hover {
-  background: rgba(244, 63, 94, 0.2);
+.btn-kit-btn:hover {
+  background: rgba(6, 182, 212, 0.2);
+  color: #38BDF8;
+  border-color: rgba(6, 182, 212, 0.4);
+}
+
+.btn-kit-btn.del:hover {
+  background: rgba(244, 63, 94, 0.25);
   color: var(--rose);
+  border-color: rgba(244, 63, 94, 0.4);
 }
 
 /* Kit Builder Row in Modal */
@@ -1528,4 +1574,151 @@ body.role-viewer .user-role-dot {
   border: 1px solid rgba(6, 182, 212, 0.2);
   border-radius: var(--radius-md);
   padding: 12px 14px;
+}
+
+/* ================= KHO HỎNG & BẢO HÀNH (RMA) ================= */
+.defective-stats-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 640px) {
+  .defective-stats-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.defective-stat-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.defective-stat-box.repair { border-left: 4px solid var(--amber); }
+.defective-stat-box.warranty { border-left: 4px solid var(--cyan); }
+.defective-stat-box.scrap { border-left: 4px solid var(--rose); }
+
+.defective-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.defective-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: var(--transition);
+}
+
+.defective-card.repair { border-left: 4px solid var(--amber); }
+.defective-card.warranty { border-left: 4px solid var(--cyan); }
+.defective-card.scrap { border-left: 4px solid var(--rose); }
+.defective-card.liquidated { border-left: 4px solid var(--text-muted); opacity: 0.75; }
+
+.defective-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.defective-badge-type {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.defective-badge-type.repair { background: rgba(245, 158, 11, 0.15); color: #FBBF24; }
+.defective-badge-type.warranty { background: rgba(56, 189, 248, 0.15); color: #38BDF8; }
+.defective-badge-type.scrap { background: rgba(244, 63, 94, 0.18); color: #FB7185; }
+.defective-badge-type.liquidated { background: rgba(148, 163, 184, 0.15); color: #94A3B8; }
+
+.defective-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 10px;
+}
+
+/* ================= INVOICE & RESTOCK ================= */
+.alert-banner {
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-banner.alert-danger {
+  background: rgba(244, 63, 94, 0.15);
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  color: #FDA4AF;
+}
+
+.alert-banner.alert-warning {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #FCD34D;
+}
+
+.invoice-item-card {
+  background: var(--bg-surface-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+@media (min-width: 640px) {
+  .invoice-item-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.invoice-thumb {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.invoice-thumb:hover {
+  transform: scale(1.05);
+  border-color: var(--primary);
+}
+
+.badge-out-restock {
+  background: rgba(244, 63, 94, 0.2);
+  color: #FB7185;
+  border: 1px solid rgba(244, 63, 94, 0.4);
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 700;
 }
